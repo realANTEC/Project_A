@@ -9,6 +9,8 @@ const MY_LIKES = ['my-likes'] as const
 const MY_SAVES = ['my-saves'] as const
 const SAVED_POSTS = ['saved-posts'] as const
 const FEED = ['feed'] as const
+const MY_COMMENT_LIKES = ['my-comment-likes'] as const
+const EMPTY_SET: ReadonlySet<string> = new Set<string>()
 
 /** Set of post ids the current user has liked. */
 export function useMyLikes() {
@@ -187,8 +189,14 @@ export type ThreadComment = {
   replies: ThreadComment[]
 }
 
-/** Flat DB comment row (author embedded) incl. parent linkage for threading. */
-type CommentRow = { id: string; body: string; parent_id: string | null; author: DbAuthor | null }
+/** Flat DB comment row (author + like count embedded) incl. parent linkage for threading. */
+type CommentRow = {
+  id: string
+  body: string
+  parent_id: string | null
+  author: DbAuthor | null
+  comment_likes?: { count: number }[]
+}
 
 /** Build a 2-level thread (roots + their replies) from flat, time-ordered rows. */
 function buildThread(rows: CommentRow[]): ThreadComment[] {
@@ -196,7 +204,7 @@ function buildThread(rows: CommentRow[]): ThreadComment[] {
     key: r.id,
     user: authorToUser(r.author, r.id),
     text: r.body,
-    likes: 0,
+    likes: r.comment_likes?.[0]?.count ?? 0,
     replies: [],
   })
   const byId = new Map(rows.map((r) => [r.id, r]))
@@ -254,7 +262,7 @@ export function useComments(postId: string, enabled: boolean) {
       const { data, error } = await supabase
         .from('comments')
         .select(
-          'id, body, parent_id, created_at, author:profiles!comments_author_id_fkey(id,username,name,avatar_url,verified)',
+          'id, body, parent_id, created_at, author:profiles!comments_author_id_fkey(id,username,name,avatar_url,verified), comment_likes(count)',
         )
         .eq('post_id', postId)
         .order('created_at', { ascending: true })
@@ -320,15 +328,81 @@ function useAddCommentDb() {
   })
 }
 
-/** Uniform comment thread + add — DB-backed for real posts, local for curated. */
+/** Set of comment ids the current user has liked. */
+export function useMyCommentLikes() {
+  const { session } = useAuth()
+  return useQuery({
+    queryKey: MY_COMMENT_LIKES,
+    enabled: !!supabase && !!session,
+    queryFn: async () => {
+      if (!supabase || !session) return new Set<string>()
+      const { data, error } = await supabase
+        .from('comment_likes')
+        .select('comment_id')
+        .eq('user_id', session.user.id)
+      if (error) throw error
+      return new Set<string>((data ?? []).map((r) => r.comment_id))
+    },
+  })
+}
+
+function useToggleCommentLikeDb(postId: string) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  return useMutation({
+    mutationFn: async ({ commentId, liked }: { commentId: string; liked: boolean }) => {
+      if (!supabase || !session) throw new Error('Not signed in')
+      const res = liked
+        ? await supabase
+            .from('comment_likes')
+            .delete()
+            .eq('user_id', session.user.id)
+            .eq('comment_id', commentId)
+        : await supabase.from('comment_likes').insert({ user_id: session.user.id, comment_id: commentId })
+      if (res.error) throw res.error
+    },
+    onMutate: async ({ commentId, liked }) => {
+      const key = ['comments', postId]
+      await qc.cancelQueries({ queryKey: MY_COMMENT_LIKES })
+      const prevSet = qc.getQueryData<Set<string>>(MY_COMMENT_LIKES)
+      const prevThread = qc.getQueryData<ThreadComment[]>(key)
+      qc.setQueryData<Set<string>>(MY_COMMENT_LIKES, (old) => {
+        const next = new Set(old ?? [])
+        if (liked) next.delete(commentId)
+        else next.add(commentId)
+        return next
+      })
+      const bump = (list: ThreadComment[]): ThreadComment[] =>
+        list.map((c) => ({
+          ...c,
+          likes: c.key === commentId ? Math.max(0, c.likes + (liked ? -1 : 1)) : c.likes,
+          replies: bump(c.replies),
+        }))
+      qc.setQueryData<ThreadComment[]>(key, (old) => (old ? bump(old) : old))
+      return { prevSet, prevThread, key }
+    },
+    onError: (_e, _v, ctx) => {
+      if (!ctx) return
+      qc.setQueryData(MY_COMMENT_LIKES, ctx.prevSet)
+      qc.setQueryData(ctx.key, ctx.prevThread)
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: MY_COMMENT_LIKES }),
+  })
+}
+
+/** Uniform comment thread + add + per-comment likes — DB-backed for real posts, local for curated. */
 export function usePostComments(post: Post): {
   thread: ThreadComment[]
   addComment: (text: string, parentKey?: string | null) => void
+  likedComments: ReadonlySet<string>
+  toggleCommentLike: (commentId: string, liked: boolean) => void
 } {
   const local = useFeed()
   const isDb = post.source === 'db'
   const dbComments = useComments(post.id, isDb)
   const addCommentDb = useAddCommentDb()
+  const myCommentLikes = useMyCommentLikes()
+  const toggleCommentLikeDb = useToggleCommentLikeDb(post.id)
 
   if (isDb) {
     return {
@@ -336,6 +410,10 @@ export function usePostComments(post: Post): {
       addComment: (text, parentKey) => {
         const t = text.trim()
         if (t) addCommentDb.mutate({ postId: post.id, body: t, parentId: parentKey ?? null })
+      },
+      likedComments: myCommentLikes.data ?? EMPTY_SET,
+      toggleCommentLike: (commentId, liked) => {
+        if (!commentId.startsWith('temp-')) toggleCommentLikeDb.mutate({ commentId, liked })
       },
     }
   }
@@ -373,5 +451,8 @@ export function usePostComments(post: Post): {
   return {
     thread: roots,
     addComment: (text, parentKey) => local.addComment(post.id, text, parentKey ?? null),
+    // Curated/local comments aren't real rows — likes stay decorative.
+    likedComments: EMPTY_SET,
+    toggleCommentLike: () => {},
   }
 }

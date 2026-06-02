@@ -48,10 +48,14 @@ function CommentItem({
   comment,
   isReply = false,
   onReply,
+  liked = false,
+  onToggleLike,
 }: {
   comment: ThreadComment
   isReply?: boolean
   onReply: () => void
+  liked?: boolean
+  onToggleLike?: () => void
 }) {
   const pending = comment.key.startsWith('temp-')
   return (
@@ -72,10 +76,16 @@ function CommentItem({
       </div>
       <button
         type="button"
+        onClick={pending ? undefined : onToggleLike}
+        disabled={pending}
         aria-label="Like comment"
-        className="mt-1 shrink-0 text-white/55 transition hover:text-rose-400"
+        aria-pressed={liked}
+        className={cn(
+          'mt-1 shrink-0 transition disabled:opacity-40',
+          liked ? 'text-rose-400' : 'text-white/55 hover:text-rose-400',
+        )}
       >
-        <Heart className="h-3.5 w-3.5" />
+        <Heart className="h-3.5 w-3.5" fill={liked ? 'currentColor' : 'none'} />
       </button>
     </div>
   )
@@ -85,7 +95,7 @@ function CommentItem({
 function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void }) {
   const navigate = useNavigate()
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
-  const { thread, addComment } = usePostComments(post)
+  const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<{ key: string; handle: string } | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
@@ -159,7 +169,12 @@ function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void 
           </div>
           {thread.map((root) => (
             <div key={root.key} className="space-y-3">
-              <CommentItem comment={root} onReply={() => startReply(root.key, root.user.handle)} />
+              <CommentItem
+                comment={root}
+                onReply={() => startReply(root.key, root.user.handle)}
+                liked={likedComments.has(root.key)}
+                onToggleLike={() => toggleCommentLike(root.key, likedComments.has(root.key))}
+              />
               {root.replies.length > 0 && (
                 <div className="ml-11 space-y-3 border-l border-white/[0.07] pl-4">
                   {expanded.has(root.key) ? (
@@ -170,6 +185,8 @@ function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void 
                           comment={r}
                           isReply
                           onReply={() => startReply(root.key, r.user.handle)}
+                          liked={likedComments.has(r.key)}
+                          onToggleLike={() => toggleCommentLike(r.key, likedComments.has(r.key))}
                         />
                       ))}
                       <button
