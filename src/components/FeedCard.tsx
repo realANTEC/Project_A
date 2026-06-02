@@ -1,29 +1,18 @@
-import { useState, type ReactNode } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import type { ReactNode } from 'react'
+import { motion } from 'motion/react'
 import { Link } from 'react-router-dom'
-import {
-  Bookmark,
-  Heart,
-  Link2,
-  MapPin,
-  MessageCircle,
-  MoreHorizontal,
-  Send,
-  Smile,
-  Trash2,
-} from 'lucide-react'
+import { Bookmark, Heart, MapPin, MessageCircle, Send, Smile } from 'lucide-react'
 import { avatar, resolveAvatar, type Post } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { usePostModal } from '@/lib/post-modal'
 import { usePostInteractions } from '@/lib/interactions'
-import { copyPostLink, sharePost } from '@/lib/share'
+import { sharePost } from '@/lib/share'
 import { useToast } from '@/lib/toast'
-import { useAuth } from '@/lib/auth'
-import { useDeletePost } from '@/lib/posts'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMedia } from './PostMedia'
+import { PostMenu } from './PostMenu'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
 
@@ -69,31 +58,11 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
     toggleSave,
   } = usePostInteractions(post)
   const { toast } = useToast()
-  const { session } = useAuth()
-  const deletePost = useDeletePost()
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [confirmDelete, setConfirmDelete] = useState(false)
-  const isOwn = post.source === 'db' && !!session && post.authorId === session.user.id
-
-  function handleDelete() {
-    setMenuOpen(false)
-    setConfirmDelete(false)
-    deletePost.mutate(post.id, {
-      onSuccess: () => toast('Post deleted'),
-      onError: () => toast('Couldn’t delete post'),
-    })
-  }
 
   async function handleShare() {
-    setMenuOpen(false)
     const result = await sharePost(post)
     if (result === 'copied') toast('Link copied')
     else if (result === 'unavailable') toast('Couldn’t share this post')
-  }
-  async function handleCopyLink() {
-    setMenuOpen(false)
-    const result = await copyPostLink(post)
-    toast(result === 'copied' ? 'Link copied' : 'Couldn’t copy link')
   }
 
   return (
@@ -131,93 +100,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
           </div>
         </div>
         <span className="shrink-0 text-xs text-white/55">{post.time}</span>
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            aria-label="More options"
-            aria-haspopup="true"
-            aria-expanded={menuOpen}
-            onClick={() => {
-              setMenuOpen((o) => !o)
-              setConfirmDelete(false)
-            }}
-            className="grid h-8 w-8 place-items-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white"
-          >
-            <MoreHorizontal className="h-5 w-5" />
-          </button>
-          <AnimatePresence>
-            {menuOpen && (
-              <>
-                <button
-                  type="button"
-                  aria-label="Close menu"
-                  tabIndex={-1}
-                  onClick={() => {
-                    setMenuOpen(false)
-                    setConfirmDelete(false)
-                  }}
-                  className="fixed inset-0 z-40 cursor-default"
-                />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                  transition={{ duration: 0.14 }}
-                  className="glass edge-light absolute right-0 top-9 z-50 w-44 rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
-                >
-                  {confirmDelete ? (
-                    <div className="px-1.5 py-1">
-                      <p className="px-1.5 pb-2 pt-1 text-sm text-white/85">Delete this post?</p>
-                      <div className="flex gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(false)}
-                          className="flex-1 rounded-xl px-3 py-1.5 text-sm font-medium text-white/80 transition hover:bg-white/[0.08]"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleDelete}
-                          disabled={deletePost.isPending}
-                          className="flex-1 rounded-xl bg-rose-500/90 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-rose-500 disabled:opacity-60"
-                        >
-                          {deletePost.isPending ? 'Deleting…' : 'Delete'}
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={handleCopyLink}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/85 transition hover:bg-white/[0.08]"
-                      >
-                        <Link2 className="h-4 w-4 text-white/60" /> Copy link
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleShare}
-                        className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/85 transition hover:bg-white/[0.08]"
-                      >
-                        <Send className="h-4 w-4 text-white/60" /> Share
-                      </button>
-                      {isOwn && (
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDelete(true)}
-                          className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-rose-400 transition hover:bg-rose-500/10"
-                        >
-                          <Trash2 className="h-4 w-4" /> Delete
-                        </button>
-                      )}
-                    </>
-                  )}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+        <PostMenu post={post} className="shrink-0" />
       </header>
 
       {/* media */}

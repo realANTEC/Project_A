@@ -12,6 +12,7 @@ import { useToast } from '@/lib/toast'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
+import { PostMenu } from './PostMenu'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
 
@@ -94,7 +95,15 @@ function CommentItem({
 }
 
 /** The two-pane content; keyed by post id so its state resets per post. */
-export function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void }) {
+export function PostDetailContent({
+  post,
+  onClose,
+  onAfterDelete,
+}: {
+  post: Post
+  onClose: () => void
+  onAfterDelete?: () => void
+}) {
   const navigate = useNavigate()
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
   const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)
@@ -146,7 +155,7 @@ export function PostDetailContent({ post, onClose }: { post: Post; onClose: () =
 
       {/* details */}
       <div className="flex min-h-0 flex-1 flex-col md:w-[44%]">
-        <header className="flex items-center gap-3 border-b border-white/[0.07] px-5 py-4">
+        <header className="flex items-center gap-3 border-b border-white/[0.07] py-4 pl-5 pr-14">
           <button type="button" onClick={goToProfile} className="shrink-0">
             <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={40} ring="aurora" />
           </button>
@@ -161,6 +170,7 @@ export function PostDetailContent({ post, onClose }: { post: Post; onClose: () =
               </span>
             )}
           </button>
+          <PostMenu post={post} onAfterDelete={onAfterDelete} className="shrink-0" />
         </header>
 
         {/* scrollable thread */}
@@ -367,7 +377,12 @@ export function PostDetailModal() {
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className="glass edge-light relative z-10 flex max-h-[90dvh] w-full max-w-[1040px] flex-col overflow-hidden rounded-4xl md:flex-row"
           >
-            <PostDetailContent key={activePost.id} post={activePost} onClose={closePost} />
+            <PostDetailContent
+              key={activePost.id}
+              post={activePost}
+              onClose={closePost}
+              onAfterDelete={closePost}
+            />
             <button
               type="button"
               onClick={closePost}
