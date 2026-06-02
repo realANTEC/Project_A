@@ -109,6 +109,33 @@ export function useIsFollowing(profileId: string | undefined) {
   })
 }
 
+export type ProfileEdits = { name: string; bio: string; website: string }
+
+/** Update your own profile (name / bio / website). Refreshes the auth profile + page query. */
+export function useUpdateProfile() {
+  const qc = useQueryClient()
+  const { session, profile, refreshProfile } = useAuth()
+  return useMutation({
+    mutationFn: async (edits: ProfileEdits) => {
+      if (!supabase || !session) throw new Error('Not signed in')
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: edits.name.trim() || 'New user',
+          bio: edits.bio.trim() || null,
+          // Store a bare domain; the UI prepends https:// when linking.
+          website: edits.website.trim().replace(/^https?:\/\//i, '') || null,
+        })
+        .eq('id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: async () => {
+      await refreshProfile()
+      if (profile?.username) void qc.invalidateQueries({ queryKey: ['profile', profile.username] })
+    },
+  })
+}
+
 /** Follow / unfollow a profile — optimistic on both the follow flag and follower count. */
 export function useToggleFollow() {
   const qc = useQueryClient()

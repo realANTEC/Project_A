@@ -20,6 +20,7 @@ import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { PhotoTile } from '@/components/PhotoTile'
+import { EditProfileModal } from '@/components/EditProfileModal'
 
 const HIGHLIGHTS = [
   { label: 'Travel', icon: Sparkles },
@@ -56,6 +57,7 @@ type ProfileViewProps = {
   isFollowing?: boolean
   onToggleFollow?: () => void
   onMessage?: () => void
+  onEditProfile?: () => void
   actionsBusy?: boolean
 }
 
@@ -71,6 +73,7 @@ function ProfileView({
   isFollowing,
   onToggleFollow,
   onMessage,
+  onEditProfile,
   actionsBusy,
 }: ProfileViewProps) {
   const { openPost } = usePostModal()
@@ -93,6 +96,7 @@ function ProfileView({
                 {isYou ? (
                   <button
                     type="button"
+                    onClick={onEditProfile}
                     className="glass-inset rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
                     Edit profile
@@ -223,28 +227,39 @@ function RealProfile({ profile }: { profile: DbProfile }) {
   const following = useIsFollowing(profile.id)
   const toggleFollow = useToggleFollow()
   const startConversation = useStartConversation()
+  const [editing, setEditing] = useState(false)
   const isFollowing = following.data ?? false
 
   return (
-    <ProfileView
-      user={profile.user}
-      bio={profile.bio}
-      website={profile.website}
-      stats={{
-        posts: posts.data?.length ?? 0,
-        followers: stats.data?.followers ?? 0,
-        following: stats.data?.following ?? 0,
-      }}
-      grid={posts.data ?? []}
-      gridLoading={posts.isLoading}
-      isYou={isYou}
-      isFollowing={isFollowing}
-      onToggleFollow={() => toggleFollow.mutate({ profileId: profile.id, following: isFollowing })}
-      onMessage={() =>
-        startConversation.mutate(profile.id, { onSuccess: (convId) => navigate(`/messages/${convId}`) })
-      }
-      actionsBusy={toggleFollow.isPending || startConversation.isPending}
-    />
+    <>
+      <ProfileView
+        user={profile.user}
+        bio={profile.bio}
+        website={profile.website}
+        stats={{
+          posts: posts.data?.length ?? 0,
+          followers: stats.data?.followers ?? 0,
+          following: stats.data?.following ?? 0,
+        }}
+        grid={posts.data ?? []}
+        gridLoading={posts.isLoading}
+        isYou={isYou}
+        isFollowing={isFollowing}
+        onToggleFollow={() => toggleFollow.mutate({ profileId: profile.id, following: isFollowing })}
+        onMessage={() =>
+          startConversation.mutate(profile.id, { onSuccess: (convId) => navigate(`/messages/${convId}`) })
+        }
+        onEditProfile={() => setEditing(true)}
+        actionsBusy={toggleFollow.isPending || startConversation.isPending}
+      />
+      {isYou && (
+        <EditProfileModal
+          open={editing}
+          initial={{ name: profile.user.name, bio: profile.bio ?? '', website: profile.website ?? '' }}
+          onClose={() => setEditing(false)}
+        />
+      )}
+    </>
   )
 }
 
