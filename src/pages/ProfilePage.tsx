@@ -21,6 +21,7 @@ import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { PhotoTile } from '@/components/PhotoTile'
 import { EditProfileModal } from '@/components/EditProfileModal'
+import { FollowListModal } from '@/components/FollowListModal'
 
 const HIGHLIGHTS = [
   { label: 'Travel', icon: Sparkles },
@@ -29,12 +30,19 @@ const HIGHLIGHTS = [
   { label: 'BTS', icon: Heart },
 ]
 
-function Stat({ n, label }: { n: number; label: string }) {
-  return (
-    <div className="text-center sm:text-left">
+function Stat({ n, label, onClick }: { n: number; label: string; onClick?: () => void }) {
+  const inner = (
+    <>
       <span className="text-base font-bold text-white tabular-nums">{formatCount(n)}</span>{' '}
       <span className="text-sm text-white/55">{label}</span>
-    </div>
+    </>
+  )
+  return onClick ? (
+    <button type="button" onClick={onClick} className="text-center transition hover:opacity-80 sm:text-left">
+      {inner}
+    </button>
+  ) : (
+    <div className="text-center sm:text-left">{inner}</div>
   )
 }
 
@@ -58,6 +66,8 @@ type ProfileViewProps = {
   onToggleFollow?: () => void
   onMessage?: () => void
   onEditProfile?: () => void
+  onFollowers?: () => void
+  onFollowing?: () => void
   actionsBusy?: boolean
 }
 
@@ -74,6 +84,8 @@ function ProfileView({
   onToggleFollow,
   onMessage,
   onEditProfile,
+  onFollowers,
+  onFollowing,
   actionsBusy,
 }: ProfileViewProps) {
   const { openPost } = usePostModal()
@@ -133,8 +145,8 @@ function ProfileView({
 
             <div className="mt-4 flex justify-center gap-8 sm:justify-start">
               <Stat n={stats.posts} label="posts" />
-              <Stat n={stats.followers} label="followers" />
-              <Stat n={stats.following} label="following" />
+              <Stat n={stats.followers} label="followers" onClick={onFollowers} />
+              <Stat n={stats.following} label="following" onClick={onFollowing} />
             </div>
 
             {bio && (
@@ -228,6 +240,7 @@ function RealProfile({ profile }: { profile: DbProfile }) {
   const toggleFollow = useToggleFollow()
   const startConversation = useStartConversation()
   const [editing, setEditing] = useState(false)
+  const [list, setList] = useState<'followers' | 'following' | null>(null)
   const isFollowing = following.data ?? false
 
   return (
@@ -250,6 +263,8 @@ function RealProfile({ profile }: { profile: DbProfile }) {
           startConversation.mutate(profile.id, { onSuccess: (convId) => navigate(`/messages/${convId}`) })
         }
         onEditProfile={() => setEditing(true)}
+        onFollowers={() => setList('followers')}
+        onFollowing={() => setList('following')}
         actionsBusy={toggleFollow.isPending || startConversation.isPending}
       />
       {isYou && (
@@ -264,6 +279,12 @@ function RealProfile({ profile }: { profile: DbProfile }) {
           onClose={() => setEditing(false)}
         />
       )}
+      <FollowListModal
+        open={list !== null}
+        kind={list ?? 'followers'}
+        profileId={profile.id}
+        onClose={() => setList(null)}
+      />
     </>
   )
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
-import { authorToUser, type DbPostRow, POST_SELECT, rowToPost } from './posts'
+import { authorToUser, type DbAuthor, type DbPostRow, POST_SELECT, rowToPost } from './posts'
 import type { Post, User } from '@/data/feed'
 
 /** A real, Postgres-backed profile (the @handle resolved to a row). */
@@ -84,6 +84,37 @@ export function useFollowStats(profileId: string | undefined) {
       if (followers.error) throw followers.error
       if (following.error) throw following.error
       return { followers: followers.count ?? 0, following: following.count ?? 0 }
+    },
+  })
+}
+
+export type FollowUser = User & { id: string }
+
+/** The people who follow `profileId` ('followers') or whom they follow ('following'). */
+export function useFollowList(
+  profileId: string | undefined,
+  kind: 'followers' | 'following',
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: ['follow-list', profileId, kind],
+    enabled: enabled && !!supabase && !!profileId,
+    queryFn: async (): Promise<FollowUser[]> => {
+      if (!supabase || !profileId) return []
+      // followers: rows where following_id = me → embed the FOLLOWER (follower_id).
+      // following: rows where follower_id = me → embed the FOLLOWED user (following_id).
+      const matchCol = kind === 'followers' ? 'following_id' : 'follower_id'
+      const embedCol = kind === 'followers' ? 'follower_id' : 'following_id'
+      const { data, error } = await supabase
+        .from('follows')
+        .select(`p:profiles!${embedCol}(id,username,name,avatar_url,verified)`)
+        .eq(matchCol, profileId)
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return ((data ?? []) as unknown as { p: DbAuthor | null }[])
+        .map((r) => r.p)
+        .filter((p): p is DbAuthor => Boolean(p))
+        .map((p) => ({ ...authorToUser(p, p.id), id: p.id }))
     },
   })
 }
@@ -189,6 +220,7 @@ export function useToggleFollow() {
     onSettled: (_d, _e, { profileId }) => {
       void qc.invalidateQueries({ queryKey: ['is-following', myId, profileId] })
       void qc.invalidateQueries({ queryKey: ['follow-stats', profileId] })
+      void qc.invalidateQueries({ queryKey: ['follow-list'] })
     },
   })
 }
