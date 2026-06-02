@@ -109,24 +109,39 @@ export function useIsFollowing(profileId: string | undefined) {
   })
 }
 
-export type ProfileEdits = { name: string; bio: string; website: string }
+export type ProfileEdits = {
+  name: string
+  bio: string
+  website: string
+  /** A newly-picked avatar as a data: URL — uploaded to Storage on save. */
+  avatarDataUrl?: string | null
+}
 
-/** Update your own profile (name / bio / website). Refreshes the auth profile + page query. */
+/** Update your own profile (name / bio / website / avatar). Refreshes auth profile + page query. */
 export function useUpdateProfile() {
   const qc = useQueryClient()
   const { session, profile, refreshProfile } = useAuth()
   return useMutation({
     mutationFn: async (edits: ProfileEdits) => {
       if (!supabase || !session) throw new Error('Not signed in')
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: edits.name.trim() || 'New user',
-          bio: edits.bio.trim() || null,
-          // Store a bare domain; the UI prepends https:// when linking.
-          website: edits.website.trim().replace(/^https?:\/\//i, '') || null,
-        })
-        .eq('id', session.user.id)
+      const update: { name: string; bio: string | null; website: string | null; avatar_url?: string } = {
+        name: edits.name.trim() || 'New user',
+        bio: edits.bio.trim() || null,
+        // Store a bare domain; the UI prepends https:// when linking.
+        website: edits.website.trim().replace(/^https?:\/\//i, '') || null,
+      }
+      // Upload a newly-picked avatar to the 'media' bucket and point avatar_url at it.
+      if (edits.avatarDataUrl?.startsWith('data:')) {
+        const blob = await (await fetch(edits.avatarDataUrl)).blob()
+        const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+        const path = `${session.user.id}/avatar-${Date.now()}.${ext}`
+        const { error: upErr } = await supabase.storage
+          .from('media')
+          .upload(path, blob, { contentType: blob.type, upsert: false })
+        if (upErr) throw upErr
+        update.avatar_url = supabase.storage.from('media').getPublicUrl(path).data.publicUrl
+      }
+      const { error } = await supabase.from('profiles').update(update).eq('id', session.user.id)
       if (error) throw error
     },
     onSuccess: async () => {

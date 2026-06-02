@@ -255,7 +255,12 @@ function RealProfile({ profile }: { profile: DbProfile }) {
       {isYou && (
         <EditProfileModal
           open={editing}
-          initial={{ name: profile.user.name, bio: profile.bio ?? '', website: profile.website ?? '' }}
+          initial={{
+            name: profile.user.name,
+            bio: profile.bio ?? '',
+            website: profile.website ?? '',
+            avatarUrl: resolveAvatar(profile.user),
+          }}
           onClose={() => setEditing(false)}
         />
       )}

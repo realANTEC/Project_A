@@ -1,26 +1,31 @@
-import { type FormEvent, useEffect, useState } from 'react'
+import { type ChangeEvent, type FormEvent, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { X } from 'lucide-react'
-import { type ProfileEdits, useUpdateProfile } from '@/lib/profile'
+import { ImagePlus, X } from 'lucide-react'
+import { useUpdateProfile } from '@/lib/profile'
 import { useFocusTrap } from '@/lib/useFocusTrap'
+import { Avatar } from './Avatar'
 
-/** Glass modal to edit your own profile (name / bio / website). */
+export type EditProfileInitial = { name: string; bio: string; website: string; avatarUrl: string }
+
+/** Glass modal to edit your own profile (avatar / name / bio / website). */
 export function EditProfileModal({
   open,
   initial,
   onClose,
 }: {
   open: boolean
-  initial: ProfileEdits
+  initial: EditProfileInitial
   onClose: () => void
 }) {
   const trapRef = useFocusTrap<HTMLDivElement>(open)
   const update = useUpdateProfile()
+  const fileRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(initial.name)
   const [bio, setBio] = useState(initial.bio)
   const [website, setWebsite] = useState(initial.website)
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
 
-  // Reset the fields to the latest values each time the modal (re)opens — render-time
+  // Reset fields to the latest values each time the modal (re)opens — render-time
   // reset (not an effect) to avoid a setState-in-effect flash.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -29,6 +34,7 @@ export function EditProfileModal({
       setName(initial.name)
       setBio(initial.bio)
       setWebsite(initial.website)
+      setAvatarDataUrl(null)
     }
   }
 
@@ -45,9 +51,17 @@ export function EditProfileModal({
     }
   }, [open, onClose])
 
+  function handleFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setAvatarDataUrl(reader.result as string)
+    reader.readAsDataURL(file)
+  }
+
   function submit(e: FormEvent) {
     e.preventDefault()
-    update.mutate({ name, bio, website }, { onSuccess: onClose })
+    update.mutate({ name, bio, website, avatarDataUrl }, { onSuccess: onClose })
   }
 
   return (
@@ -85,6 +99,22 @@ export function EditProfileModal({
             </header>
 
             <form onSubmit={submit} className="flex flex-col gap-4 p-5">
+              {/* Avatar */}
+              <div className="flex items-center gap-4">
+                <Avatar src={avatarDataUrl ?? initial.avatarUrl} alt="" size={72} ring="aurora" />
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="glass-inset flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+                  >
+                    <ImagePlus className="h-4 w-4" /> Change photo
+                  </button>
+                  {avatarDataUrl && <span className="pl-1 text-[11px] text-white/55">New photo selected</span>}
+                </div>
+                <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+              </div>
+
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-medium text-white/55">Name</span>
                 <input
