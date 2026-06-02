@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
@@ -93,9 +94,10 @@ export function useUserPosts(profileId: string | undefined) {
 
 export type FollowStats = { followers: number; following: number }
 
-/** Follower + following counts for a profile (head-only count queries). */
+/** Follower + following counts for a profile (head-only count queries), kept live. */
 export function useFollowStats(profileId: string | undefined) {
-  return useQuery({
+  const qc = useQueryClient()
+  const query = useQuery({
     queryKey: ['follow-stats', profileId],
     enabled: !!supabase && !!profileId,
     queryFn: async (): Promise<FollowStats> => {
@@ -109,6 +111,35 @@ export function useFollowStats(profileId: string | undefined) {
       return { followers: followers.count ?? 0, following: following.count ?? 0 }
     },
   })
+
+  // Live counts: `follows` is in the realtime publication, so refresh when this profile
+  // gains/loses a follower (following_id) or follows/unfollows someone (follower_id).
+  useEffect(() => {
+    if (!supabase || !profileId) return
+    const client = supabase
+    const refresh = () => {
+      void qc.invalidateQueries({ queryKey: ['follow-stats', profileId] })
+      void qc.invalidateQueries({ queryKey: ['follow-list', profileId] })
+    }
+    const channel = client
+      .channel(`follow-stats:${profileId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'follows', filter: `following_id=eq.${profileId}` },
+        refresh,
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'follows', filter: `follower_id=eq.${profileId}` },
+        refresh,
+      )
+      .subscribe()
+    return () => {
+      void client.removeChannel(channel)
+    }
+  }, [profileId, qc])
+
+  return query
 }
 
 export type FollowUser = User & { id: string }
