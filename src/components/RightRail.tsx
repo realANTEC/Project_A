@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Search, TrendingUp } from 'lucide-react'
 import { avatar, resolveAvatar, suggestions, trends } from '@/data/feed'
@@ -5,6 +7,7 @@ import { formatCount } from '@/lib/format'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useMyFollowing, useSuggestedProfiles, useToggleFollow } from '@/lib/profile'
 import { useSearch } from '@/lib/search'
+import { AboutModal } from './AboutModal'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 
@@ -77,12 +80,13 @@ function RealSuggestions() {
 /** Right rail — search, people suggestions, trends, and footer. */
 export function RightRail() {
   const { openSearch } = useSearch()
+  const [aboutOpen, setAboutOpen] = useState(false)
   return (
     <div className="flex flex-col gap-5 py-6 pl-2">
       {/* Search */}
       <button
         type="button"
-        onClick={openSearch}
+        onClick={() => openSearch()}
         className="glass-inset flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-sm text-white/55 transition hover:text-white/70"
       >
         <Search className="h-[18px] w-[18px] shrink-0" />
@@ -94,7 +98,11 @@ export function RightRail() {
       <section className="glass edge-light rounded-4xl p-5">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-white">Suggested for you</h2>
-          <button type="button" className="text-xs font-medium text-lilac transition hover:text-white">
+          <button
+            type="button"
+            onClick={() => openSearch()}
+            className="text-xs font-medium text-lilac transition hover:text-white"
+          >
             See all
           </button>
         </div>
@@ -112,6 +120,7 @@ export function RightRail() {
             <li key={t.topic}>
               <button
                 type="button"
+                onClick={() => openSearch(t.topic.replace(/^#/, ''))}
                 className="flex w-full flex-col gap-0.5 rounded-xl px-2 py-2 text-left transition hover:bg-white/[0.05]"
               >
                 <span className="text-[11px] text-white/55">{t.category}</span>
@@ -127,13 +136,23 @@ export function RightRail() {
       <footer className="px-2 text-[11px] leading-relaxed text-white/55">
         <p className="flex flex-wrap gap-x-2.5 gap-y-1">
           {['About', 'Help', 'Privacy', 'Terms', 'Careers', 'API'].map((l) => (
-            <button key={l} type="button" className="transition hover:text-white">
+            <button
+              key={l}
+              type="button"
+              onClick={() => setAboutOpen(true)}
+              className="transition hover:text-white"
+            >
               {l}
             </button>
           ))}
         </p>
         <p className="mt-2.5">© 2026 Aurora — made with light.</p>
       </footer>
+
+      {/* Portaled to <body>: this right-rail <aside> is display:none below xl, and a
+          position:fixed child of a display:none ancestor doesn't render — so the modal
+          must escape the aside to be visible. */}
+      {createPortal(<AboutModal open={aboutOpen} onClose={() => setAboutOpen(false)} />, document.body)}
     </div>
   )
 }

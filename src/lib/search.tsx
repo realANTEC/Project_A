@@ -3,7 +3,8 @@ import { SearchPalette } from '@/components/SearchPalette'
 
 type SearchCtx = {
   open: boolean
-  openSearch: () => void
+  /** Open the palette, optionally seeded with a starting query (e.g. a trend or highlight). */
+  openSearch: (query?: string) => void
   closeSearch: () => void
 }
 
@@ -19,13 +20,18 @@ export function useSearch(): SearchCtx {
 /** Command-palette search, also bound to ⌘K / Ctrl-K globally. */
 export function SearchProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false)
-  const openSearch = useCallback(() => setOpen(true), [])
+  const [seed, setSeed] = useState('')
+  const openSearch = useCallback((query = '') => {
+    setSeed(query)
+    setOpen(true)
+  }, [])
   const closeSearch = useCallback(() => setOpen(false), [])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
+        setSeed('') // keyboard shortcut always opens a blank palette
         setOpen((o) => !o)
       }
     }
@@ -36,7 +42,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={{ open, openSearch, closeSearch }}>
       {children}
-      <SearchPalette />
+      <SearchPalette seed={seed} />
     </Ctx.Provider>
   )
 }

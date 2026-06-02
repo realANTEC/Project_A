@@ -16,6 +16,7 @@ import {
 } from '@/lib/profile'
 import { useStartConversation } from '@/lib/messages'
 import { usePostModal } from '@/lib/post-modal'
+import { useSearch } from '@/lib/search'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
@@ -89,6 +90,7 @@ function ProfileView({
   actionsBusy,
 }: ProfileViewProps) {
   const { openPost } = usePostModal()
+  const { openSearch } = useSearch()
   const [tab, setTab] = useState<'posts' | 'tagged'>('posts')
 
   return (
@@ -171,7 +173,12 @@ function ProfileView({
         {/* Highlights */}
         <div className="no-scrollbar mask-fade-r mt-7 flex gap-5 overflow-x-auto">
           {HIGHLIGHTS.map(({ label, icon: Icon }) => (
-            <button key={label} type="button" className="group flex shrink-0 flex-col items-center gap-1.5">
+            <button
+              key={label}
+              type="button"
+              onClick={() => openSearch(label)}
+              className="group flex shrink-0 flex-col items-center gap-1.5"
+            >
               <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10 transition group-hover:ring-white/25">
                 <Icon className="h-6 w-6 text-white/70" strokeWidth={1.6} />
               </span>

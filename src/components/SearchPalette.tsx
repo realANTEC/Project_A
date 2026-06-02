@@ -48,7 +48,7 @@ function buildResults(q: string): Result[] {
   return [...ppl, ...tgs, ...pst]
 }
 
-export function SearchPalette() {
+export function SearchPalette({ seed = '' }: { seed?: string }) {
   const { open, closeSearch } = useSearch()
   const { openPost } = usePostModal()
   const navigate = useNavigate()
@@ -66,13 +66,14 @@ export function SearchPalette() {
     return [...realPpl, ...base.filter((r) => r.kind !== 'person')]
   }, [q, realPeople.data])
 
-  // Reset query/selection when the palette opens (adjust-during-render, not an effect).
+  // Seed query/selection when the palette opens (adjust-during-render, not an effect).
+  // `seed` is '' for ⌘K and the typed-in case, or a topic/highlight when opened from a chip.
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      setQ('')
+      setQ(seed)
       setActive(0)
-      setDebouncedQ('')
+      setDebouncedQ(seed)
     }
   }
 

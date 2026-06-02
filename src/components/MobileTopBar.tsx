@@ -11,7 +11,7 @@ export function MobileTopBar() {
       <div className="flex items-center gap-1">
         <button
           type="button"
-          onClick={openSearch}
+          onClick={() => openSearch()}
           aria-label="Search"
           className="grid h-10 w-10 place-items-center rounded-full text-white/75 transition hover:bg-white/10 hover:text-white"
         >
