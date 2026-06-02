@@ -42,11 +42,11 @@ function ExploreTile({
         loading="lazy"
         onLoad={() => setLoaded(true)}
         className={cn(
-          'block w-full object-cover transition-[opacity,transform] duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.06]',
+          'relative z-10 block w-full object-cover transition-[opacity,transform] duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.06]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
       />
-      <div className="absolute inset-0 flex items-center justify-center gap-6 bg-black/45 opacity-0 backdrop-blur-[1px] transition duration-300 group-hover:opacity-100">
+      <div className="absolute inset-0 z-20 flex items-center justify-center gap-6 bg-black/45 opacity-0 backdrop-blur-[1px] transition duration-300 group-hover:opacity-100">
         <span className="flex items-center gap-1.5 text-sm font-bold text-white">
           <Heart className="h-5 w-5" fill="currentColor" /> {formatCount(post.likes)}
         </span>
