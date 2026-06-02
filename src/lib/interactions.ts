@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
@@ -252,9 +253,12 @@ function insertInThread(
   )
 }
 
-/** Comments for a real (DB) post, with author profiles, oldest first. */
+/** Comments for a real (DB) post, with author profiles + like counts, oldest first. */
 export function useComments(postId: string, enabled: boolean) {
-  return useQuery({
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const myId = session?.user.id
+  const query = useQuery({
     queryKey: ['comments', postId],
     enabled: enabled && !!supabase,
     queryFn: async (): Promise<ThreadComment[]> => {
@@ -270,6 +274,27 @@ export function useComments(postId: string, enabled: boolean) {
       return buildThread((data ?? []) as unknown as CommentRow[])
     },
   })
+
+  // Live comment-like counts: refresh the open thread when others like/unlike a comment.
+  // comment_likes is in the realtime publication; the (user_id, comment_id) PK means the
+  // DELETE payload still carries user_id, so we can skip our own optimistic toggles.
+  useEffect(() => {
+    if (!enabled || !supabase) return
+    const client = supabase
+    const channel = client
+      .channel(`comment-likes:${postId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'comment_likes' }, (payload) => {
+        const row = (payload.new ?? payload.old) as { user_id?: string } | null
+        if (row?.user_id === myId) return
+        void qc.invalidateQueries({ queryKey: ['comments', postId] })
+      })
+      .subscribe()
+    return () => {
+      void client.removeChannel(channel)
+    }
+  }, [enabled, postId, myId, qc])
+
+  return query
 }
 
 function useAddCommentDb() {
