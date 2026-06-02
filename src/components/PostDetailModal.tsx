@@ -7,6 +7,8 @@ import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { fallbackLayoutId, morphName, supportsViewTransitions, usePostModal } from '@/lib/post-modal'
 import { type ThreadComment, usePostComments, usePostInteractions } from '@/lib/interactions'
+import { sharePost } from '@/lib/share'
+import { useToast } from '@/lib/toast'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
@@ -96,6 +98,7 @@ function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void 
   const navigate = useNavigate()
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
   const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)
+  const { toast } = useToast()
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<{ key: string; handle: string } | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
@@ -118,6 +121,11 @@ function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void 
   function goToProfile() {
     onClose()
     navigate(`/u/${post.author.handle}`)
+  }
+  async function handleShare() {
+    const result = await sharePost(post)
+    if (result === 'copied') toast('Link copied')
+    else if (result === 'unavailable') toast('Couldn’t share this post')
   }
 
   return (
@@ -232,7 +240,7 @@ function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void 
             <PaneAction label="Comment">
               <MessageCircle className="h-[25px] w-[25px]" strokeWidth={1.75} />
             </PaneAction>
-            <PaneAction label="Share">
+            <PaneAction label="Share" onClick={handleShare}>
               <Send className="h-[23px] w-[23px]" strokeWidth={1.75} />
             </PaneAction>
             <button

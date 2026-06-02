@@ -1,12 +1,14 @@
-import type { ReactNode } from 'react'
-import { motion } from 'motion/react'
+import { useState, type ReactNode } from 'react'
+import { AnimatePresence, motion } from 'motion/react'
 import { Link } from 'react-router-dom'
-import { Bookmark, Heart, MapPin, MessageCircle, MoreHorizontal, Send, Smile } from 'lucide-react'
+import { Bookmark, Heart, Link2, MapPin, MessageCircle, MoreHorizontal, Send, Smile } from 'lucide-react'
 import { avatar, resolveAvatar, type Post } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { usePostModal } from '@/lib/post-modal'
 import { usePostInteractions } from '@/lib/interactions'
+import { copyPostLink, sharePost } from '@/lib/share'
+import { useToast } from '@/lib/toast'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMedia } from './PostMedia'
@@ -54,6 +56,20 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
     like,
     toggleSave,
   } = usePostInteractions(post)
+  const { toast } = useToast()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  async function handleShare() {
+    setMenuOpen(false)
+    const result = await sharePost(post)
+    if (result === 'copied') toast('Link copied')
+    else if (result === 'unavailable') toast('Couldn’t share this post')
+  }
+  async function handleCopyLink() {
+    setMenuOpen(false)
+    const result = await copyPostLink(post)
+    toast(result === 'copied' ? 'Link copied' : 'Couldn’t copy link')
+  }
 
   return (
     <motion.article
@@ -90,13 +106,53 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
           </div>
         </div>
         <span className="shrink-0 text-xs text-white/55">{post.time}</span>
-        <button
-          type="button"
-          aria-label="More options"
-          className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white"
-        >
-          <MoreHorizontal className="h-5 w-5" />
-        </button>
+        <div className="relative shrink-0">
+          <button
+            type="button"
+            aria-label="More options"
+            aria-haspopup="true"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+            className="grid h-8 w-8 place-items-center rounded-full text-white/50 transition hover:bg-white/10 hover:text-white"
+          >
+            <MoreHorizontal className="h-5 w-5" />
+          </button>
+          <AnimatePresence>
+            {menuOpen && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Close menu"
+                  tabIndex={-1}
+                  onClick={() => setMenuOpen(false)}
+                  className="fixed inset-0 z-40 cursor-default"
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                  transition={{ duration: 0.14 }}
+                  className="glass edge-light absolute right-0 top-9 z-50 w-44 rounded-2xl p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.5)]"
+                >
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/85 transition hover:bg-white/[0.08]"
+                  >
+                    <Link2 className="h-4 w-4 text-white/60" /> Copy link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShare}
+                    className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium text-white/85 transition hover:bg-white/[0.08]"
+                  >
+                    <Send className="h-4 w-4 text-white/60" /> Share
+                  </button>
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       {/* media */}
@@ -134,7 +190,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
           <span className="text-sm font-medium tabular-nums">{formatCount(commentCount)}</span>
         </ActionButton>
 
-        <ActionButton label="Share">
+        <ActionButton label="Share" onClick={handleShare}>
           <Send className="h-[23px] w-[23px]" strokeWidth={1.75} />
         </ActionButton>
 

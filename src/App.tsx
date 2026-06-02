@@ -9,6 +9,7 @@ import { useInboxRealtime } from '@/lib/messages'
 import { useNotificationsRealtime } from '@/lib/notifications'
 import { FeedProvider } from '@/lib/feed-store'
 import { PresenceProvider } from '@/lib/presence'
+import { ToastProvider } from '@/lib/toast'
 import { PostModalProvider } from '@/lib/post-modal'
 import { ComposeProvider } from '@/lib/compose'
 import { SearchProvider } from '@/lib/search'
@@ -51,27 +52,29 @@ function AppShell() {
 
   return (
     <PresenceProvider>
-      <FeedProvider>
-        <PostModalProvider>
-          <ComposeProvider>
-            <SearchProvider>
-              <Routes>
-                <Route path="/" element={<Layout />}>
-                  <Route index element={<HomePage />} />
-                  <Route path="explore" element={<ExplorePage />} />
-                  <Route path="notifications" element={<NotificationsPage />} />
-                  <Route path="messages" element={<MessagesPage />} />
-                  <Route path="messages/:conversationId" element={<MessagesPage />} />
-                  <Route path="saved" element={<SavedPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                  <Route path="u/:handle" element={<ProfilePage />} />
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Route>
-              </Routes>
-            </SearchProvider>
-          </ComposeProvider>
-        </PostModalProvider>
-      </FeedProvider>
+      <ToastProvider>
+        <FeedProvider>
+          <PostModalProvider>
+            <ComposeProvider>
+              <SearchProvider>
+                <Routes>
+                  <Route path="/" element={<Layout />}>
+                    <Route index element={<HomePage />} />
+                    <Route path="explore" element={<ExplorePage />} />
+                    <Route path="notifications" element={<NotificationsPage />} />
+                    <Route path="messages" element={<MessagesPage />} />
+                    <Route path="messages/:conversationId" element={<MessagesPage />} />
+                    <Route path="saved" element={<SavedPage />} />
+                    <Route path="settings" element={<SettingsPage />} />
+                    <Route path="u/:handle" element={<ProfilePage />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Route>
+                </Routes>
+              </SearchProvider>
+            </ComposeProvider>
+          </PostModalProvider>
+        </FeedProvider>
+      </ToastProvider>
     </PresenceProvider>
   )
 }
