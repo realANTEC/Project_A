@@ -205,6 +205,43 @@ export function useUpdateProfile() {
   })
 }
 
+/** The set of user ids the signed-in user currently follows. */
+export function useMyFollowing() {
+  const { session } = useAuth()
+  const myId = session?.user.id
+  return useQuery({
+    queryKey: ['my-following', myId],
+    enabled: !!supabase && !!myId,
+    queryFn: async (): Promise<Set<string>> => {
+      if (!supabase || !myId) return new Set()
+      const { data, error } = await supabase.from('follows').select('following_id').eq('follower_id', myId)
+      if (error) throw error
+      return new Set((data ?? []).map((r) => r.following_id))
+    },
+  })
+}
+
+/** Suggested people to follow — recent real profiles (excludes you; filter already-followed in UI). */
+export function useSuggestedProfiles(limit = 8) {
+  const { session } = useAuth()
+  const myId = session?.user.id
+  return useQuery({
+    queryKey: ['suggested-profiles', myId],
+    enabled: !!supabase && !!session,
+    queryFn: async (): Promise<FollowUser[]> => {
+      if (!supabase || !myId) return []
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, username, name, avatar_url, verified')
+        .neq('id', myId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+      if (error) throw error
+      return (data ?? []).map((p) => ({ ...authorToUser(p as DbAuthor, p.id), id: p.id }))
+    },
+  })
+}
+
 /** Follow / unfollow a profile — optimistic on both the follow flag and follower count. */
 export function useToggleFollow() {
   const qc = useQueryClient()
@@ -244,6 +281,7 @@ export function useToggleFollow() {
       void qc.invalidateQueries({ queryKey: ['is-following', myId, profileId] })
       void qc.invalidateQueries({ queryKey: ['follow-stats', profileId] })
       void qc.invalidateQueries({ queryKey: ['follow-list'] })
+      void qc.invalidateQueries({ queryKey: ['my-following', myId] })
     },
   })
 }

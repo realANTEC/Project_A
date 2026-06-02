@@ -1,10 +1,78 @@
 import { Link } from 'react-router-dom'
 import { Search, TrendingUp } from 'lucide-react'
-import { avatar, suggestions, trends } from '@/data/feed'
+import { avatar, resolveAvatar, suggestions, trends } from '@/data/feed'
 import { formatCount } from '@/lib/format'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { useMyFollowing, useSuggestedProfiles, useToggleFollow } from '@/lib/profile'
 import { useSearch } from '@/lib/search'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
+
+/** Curated suggestions (local mode) — static, decorative Follow. */
+function MockSuggestions() {
+  return (
+    <ul className="mt-4 space-y-4">
+      {suggestions.map(({ user, reason }) => (
+        <li key={user.handle} className="flex items-center gap-3">
+          <Link to={`/u/${user.handle}`} className="shrink-0">
+            <Avatar src={avatar(user.avatarId)} alt={user.name} size={40} ring="aurora" />
+          </Link>
+          <Link to={`/u/${user.handle}`} className="min-w-0 flex-1">
+            <span className="flex items-center gap-1">
+              <span className="truncate text-sm font-semibold text-white hover:underline">{user.handle}</span>
+              {user.verified && <VerifiedBadge />}
+            </span>
+            <span className="block truncate text-xs text-white/55">{reason}</span>
+          </Link>
+          <button
+            type="button"
+            className="bg-aurora-soft shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10"
+          >
+            Follow
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Real "who to follow" — recent profiles you don't follow yet, with a working Follow. */
+function RealSuggestions() {
+  const { data: people = [] } = useSuggestedProfiles()
+  const { data: following = new Set<string>() } = useMyFollowing()
+  const toggleFollow = useToggleFollow()
+  const list = people.filter((u) => !following.has(u.id)).slice(0, 5)
+
+  if (list.length === 0)
+    return <p className="mt-4 text-xs text-white/55">No suggestions yet — invite a friend to Aurora.</p>
+
+  return (
+    <ul className="mt-4 space-y-4">
+      {list.map((u) => (
+        <li key={u.id} className="flex items-center gap-3">
+          <Link to={`/u/${u.handle}`} className="shrink-0">
+            <Avatar src={resolveAvatar(u)} alt={u.name} size={40} ring="aurora" />
+          </Link>
+          <Link to={`/u/${u.handle}`} className="min-w-0 flex-1">
+            <span className="flex items-center gap-1">
+              <span className="truncate text-sm font-semibold text-white hover:underline">{u.handle}</span>
+              {u.verified && <VerifiedBadge />}
+            </span>
+            <span className="block truncate text-xs text-white/55">{u.name}</span>
+          </Link>
+          <button
+            type="button"
+            onClick={() => toggleFollow.mutate({ profileId: u.id, following: false })}
+            disabled={toggleFollow.isPending}
+            className="bg-aurora-soft shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10 disabled:opacity-50"
+          >
+            Follow
+          </button>
+        </li>
+      ))}
+    </ul>
+  )
+}
 
 /** Right rail — search, people suggestions, trends, and footer. */
 export function RightRail() {
@@ -30,30 +98,7 @@ export function RightRail() {
             See all
           </button>
         </div>
-        <ul className="mt-4 space-y-4">
-          {suggestions.map(({ user, reason }) => (
-            <li key={user.handle} className="flex items-center gap-3">
-              <Link to={`/u/${user.handle}`} className="shrink-0">
-                <Avatar src={avatar(user.avatarId)} alt={user.name} size={40} ring="aurora" />
-              </Link>
-              <Link to={`/u/${user.handle}`} className="min-w-0 flex-1">
-                <span className="flex items-center gap-1">
-                  <span className="truncate text-sm font-semibold text-white hover:underline">
-                    {user.handle}
-                  </span>
-                  {user.verified && <VerifiedBadge />}
-                </span>
-                <span className="block truncate text-xs text-white/55">{reason}</span>
-              </Link>
-              <button
-                type="button"
-                className="bg-aurora-soft shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10"
-              >
-                Follow
-              </button>
-            </li>
-          ))}
-        </ul>
+        {isSupabaseConfigured ? <RealSuggestions /> : <MockSuggestions />}
       </section>
 
       {/* Trends */}
