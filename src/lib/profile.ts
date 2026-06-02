@@ -50,6 +50,29 @@ export function useProfileByHandle(handle: string | undefined) {
   })
 }
 
+/** Search real profiles by name or @handle (excludes yourself). Empty when query is blank. */
+export function useProfileSearch(query: string) {
+  const { session } = useAuth()
+  const myId = session?.user.id
+  // Strip characters that would break PostgREST's or()/ilike filter syntax.
+  const safe = query.trim().replace(/[%,()*\\]/g, ' ').trim()
+  return useQuery({
+    queryKey: ['profile-search', safe],
+    enabled: !!supabase && safe.length >= 1,
+    queryFn: async (): Promise<FollowUser[]> => {
+      if (!supabase || !safe) return []
+      const base = supabase
+        .from('profiles')
+        .select('id, username, name, avatar_url, verified')
+        .or(`username.ilike.%${safe}%,name.ilike.%${safe}%`)
+        .limit(6)
+      const { data, error } = await (myId ? base.neq('id', myId) : base)
+      if (error) throw error
+      return (data ?? []).map((p) => ({ ...authorToUser(p as DbAuthor, p.id), id: p.id }))
+    },
+  })
+}
+
 /** A profile's own posts (newest first) as full Post objects (source: 'db'). */
 export function useUserPosts(profileId: string | undefined) {
   return useQuery({

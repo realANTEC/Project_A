@@ -2,9 +2,11 @@ import { type KeyboardEvent as ReactKeyboardEvent, useEffect, useMemo, useState 
 import { AnimatePresence, motion } from 'motion/react'
 import { useNavigate } from 'react-router-dom'
 import { Hash, Search as SearchIcon, TrendingUp } from 'lucide-react'
-import { avatar, explorePosts, people, posts, type Post, trends, type User } from '@/data/feed'
+import { explorePosts, people, posts, type Post, resolveAvatar, trends, type User } from '@/data/feed'
 import { cn } from '@/lib/cn'
 import { useSearch } from '@/lib/search'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { useProfileSearch } from '@/lib/profile'
 import { usePostModal } from '@/lib/post-modal'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
@@ -53,8 +55,16 @@ export function SearchPalette() {
   const [q, setQ] = useState('')
   const [active, setActive] = useState(0)
   const [wasOpen, setWasOpen] = useState(open)
+  const [debouncedQ, setDebouncedQ] = useState('')
   const trapRef = useFocusTrap<HTMLDivElement>(open)
-  const results = useMemo(() => buildResults(q), [q])
+  // Real profile matches from Postgres (debounced); replaces the mock people while configured.
+  const realPeople = useProfileSearch(open ? debouncedQ : '')
+  const results = useMemo(() => {
+    const base = buildResults(q)
+    if (!isSupabaseConfigured || !q.trim()) return base
+    const realPpl = (realPeople.data ?? []).map((user): Result => ({ kind: 'person', user }))
+    return [...realPpl, ...base.filter((r) => r.kind !== 'person')]
+  }, [q, realPeople.data])
 
   // Reset query/selection when the palette opens (adjust-during-render, not an effect).
   if (open !== wasOpen) {
@@ -62,8 +72,15 @@ export function SearchPalette() {
     if (open) {
       setQ('')
       setActive(0)
+      setDebouncedQ('')
     }
   }
+
+  // Debounce the query that hits the network.
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedQ(q), 200)
+    return () => window.clearTimeout(id)
+  }, [q])
 
   useEffect(() => {
     if (!open) return
@@ -165,7 +182,7 @@ export function SearchPalette() {
                   >
                     {r.kind === 'person' && (
                       <>
-                        <Avatar src={avatar(r.user.avatarId)} alt={r.user.name} size={40} ring="aurora" />
+                        <Avatar src={resolveAvatar(r.user)} alt={r.user.name} size={40} ring="aurora" />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
                             <span className="truncate text-sm font-semibold text-white">{r.user.name}</span>
