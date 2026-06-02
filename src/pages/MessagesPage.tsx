@@ -9,6 +9,7 @@ import {
   type DbConversation,
   useConversationMessages,
   useConversations,
+  useMarkRead,
   useProfiles,
   useSendMessage,
   useStartConversation,
@@ -50,12 +51,18 @@ function Thread({
   const { data: messages = [] } = useConversationMessages(conversation.id)
   const send = useSendMessage()
   const { theyTyping, notifyTyping } = useTyping(conversation.id)
+  const { mutate: markRead } = useMarkRead()
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages.length, theyTyping])
+
+  // Mark this conversation read when opened and when new messages arrive while it's open.
+  useEffect(() => {
+    markRead(conversation.id)
+  }, [conversation.id, messages.length, markRead])
 
   function submit(e: FormEvent) {
     e.preventDefault()
@@ -286,8 +293,20 @@ function RealMessages() {
                     <span className="truncate text-sm font-semibold text-white">{c.user.name}</span>
                     <span className="shrink-0 text-[11px] text-white/55">{c.time}</span>
                   </div>
-                  <p className="truncate text-xs text-white/55">{c.preview}</p>
+                  <p
+                    className={cn(
+                      'truncate text-xs',
+                      c.unread > 0 ? 'font-semibold text-white/85' : 'text-white/55',
+                    )}
+                  >
+                    {c.preview}
+                  </p>
                 </div>
+                {c.unread > 0 && (
+                  <span className="bg-aurora grid h-5 min-w-5 shrink-0 place-items-center rounded-full px-1 text-[10px] font-bold text-white">
+                    {c.unread}
+                  </span>
+                )}
               </button>
             ))}
           </div>

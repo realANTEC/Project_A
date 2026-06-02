@@ -15,12 +15,13 @@ export type DbConversation = {
   preview: string
   time: string
   lastAt: string
+  unread: number
 }
 export type Profile = User & { id: string }
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
-type MemberRow = { user_id: string; profile: DbAuthor | null }
+type MemberRow = { user_id: string; last_read_at: string | null; profile: DbAuthor | null }
 type MsgRow = { id: string; body: string; sender_id: string; created_at: string }
 type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages: MsgRow[] }
 
@@ -38,7 +39,7 @@ export function useConversations() {
       const { data, error } = await supabase
         .from('conversations')
         .select(
-          'id, created_at, members:conversation_members(user_id, profile:profiles(id,username,name,avatar_url,verified)), messages(id, body, sender_id, created_at)',
+          'id, created_at, members:conversation_members(user_id, last_read_at, profile:profiles(id,username,name,avatar_url,verified)), messages(id, body, sender_id, created_at)',
         )
       if (error) throw error
       const rows = (data ?? []) as unknown as ConvRow[]
@@ -47,6 +48,11 @@ export function useConversations() {
           const other = c.members.find((m) => m.user_id !== myId) ?? c.members[0]
           const msgs = [...(c.messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at))
           const last = msgs[msgs.length - 1]
+          // Unread = messages from the other person newer than my last_read_at.
+          const lastRead = c.members.find((m) => m.user_id === myId)?.last_read_at
+          const unread = msgs.filter(
+            (m) => m.sender_id !== myId && (!lastRead || m.created_at > lastRead),
+          ).length
           return {
             id: c.id,
             otherId: other?.user_id ?? '',
@@ -54,6 +60,7 @@ export function useConversations() {
             preview: last ? `${last.sender_id === myId ? 'You: ' : ''}${last.body}` : 'Say hello 👋',
             time: last ? relativeTime(last.created_at) : '',
             lastAt: last?.created_at ?? c.created_at,
+            unread,
           }
         })
         .sort((a, b) => b.lastAt.localeCompare(a.lastAt))
@@ -80,6 +87,24 @@ export function useConversations() {
   }, [myId, qc])
 
   return query
+}
+
+/** Mark a conversation read for the signed-in user (advances their last_read_at). */
+export function useMarkRead() {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      if (!supabase || !session) return
+      const { error } = await supabase
+        .from('conversation_members')
+        .update({ last_read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .eq('user_id', session.user.id)
+      if (error) throw error
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['conversations'] }),
+  })
 }
 
 /** Messages for one conversation (oldest first) + live INSERTs from the other person. */
