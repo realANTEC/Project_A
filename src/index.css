@@ -1,0 +1,376 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   AURORA — design system
+   A visual-first social experience rendered on living glass.
+   Deep dark canvas · frosted glass surfaces · luminous aurora light · grain.
+   ========================================================================== */
+
+@theme {
+  /* ---- Typefaces ---- */
+  --font-sans:
+    'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Space Grotesk', var(--font-sans);
+
+  /* ---- Canvas ---- */
+  --color-canvas: #06060c;
+  --color-canvas-2: #0a0a16;
+
+  /* ---- Aurora accents ---- */
+  --color-iris: #7c5cff;
+  --color-violet: #8b6cff;
+  --color-lilac: #b9a6ff;
+  --color-magenta: #e84cff;
+  --color-pink: #ff6ab5;
+  --color-rose: #ff5d7e;
+  --color-cyan: #45e6d8;
+  --color-aqua: #5ad1ff;
+  --color-amber: #ffc06b;
+
+  /* ---- Radii ---- */
+  --radius-4xl: 2rem;
+  --radius-5xl: 2.5rem;
+
+  /* ---- Elevation ---- */
+  --shadow-glass: 0 24px 70px -28px rgba(0, 0, 0, 0.75), inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+  --shadow-float: 0 40px 120px -40px rgba(0, 0, 0, 0.85);
+  --shadow-glow-violet: 0 18px 60px -18px color-mix(in oklab, var(--color-iris) 70%, transparent);
+  --shadow-glow-pink: 0 18px 60px -18px color-mix(in oklab, var(--color-pink) 70%, transparent);
+
+  /* ---- Easing ---- */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================================
+   Base
+   ========================================================================== */
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--color-canvas);
+    font-family: var(--font-sans);
+    font-feature-settings:
+      'cv11',
+      'ss01',
+      'liga' 1,
+      'calt' 1;
+    color: rgba(255, 255, 255, 0.92);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-iris) 45%, transparent);
+    color: #fff;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
+  /* Focus ring — accent, only for keyboard users */
+  :focus-visible {
+    outline: 2px solid color-mix(in oklab, var(--color-lilac) 80%, transparent);
+    outline-offset: 2px;
+    border-radius: 0.5rem;
+  }
+
+  /* Scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.14);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.28);
+  }
+}
+
+/* ============================================================================
+   Components — the glass + light vocabulary
+   ========================================================================== */
+
+@layer components {
+  /* Frosted glass surface */
+  .glass {
+    position: relative;
+    /* Dark, low-opacity base so text keeps WCAG-AA contrast even where the glass
+       floats over a bright aurora blob; the white sheen + edge-light below keep it
+       reading as luminous frosted glass rather than flat panel. */
+    background-color: rgba(9, 10, 22, 0.32);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    box-shadow: var(--shadow-glass);
+  }
+
+  /* Subtler nested glass (inputs, chips, inner panels) */
+  .glass-inset {
+    background-color: rgba(2, 3, 10, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  }
+
+  /* Interactive glass that lifts and brightens on hover */
+  .glass-interactive {
+    transition:
+      transform 0.45s var(--ease-out-soft),
+      border-color 0.45s var(--ease-out-soft),
+      box-shadow 0.45s var(--ease-out-soft),
+      background-color 0.45s var(--ease-out-soft);
+  }
+  .glass-interactive:hover {
+    border-color: rgba(255, 255, 255, 0.16);
+    background-color: rgba(24, 26, 48, 0.46);
+    box-shadow:
+      var(--shadow-float),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.12);
+  }
+
+  /* A thin luminous hairline along the top edge — adds realism to glass */
+  .edge-light::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  /* Aurora text — the brand gradient as type */
+  .text-aurora {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-lilac) 0%,
+      var(--color-pink) 48%,
+      var(--color-cyan) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Primary brand fill (buttons, story add, etc.) */
+  .bg-aurora {
+    background-image: linear-gradient(
+      120deg,
+      color-mix(in oklab, var(--color-iris), #000 var(--grad-dark-1, 8%)) 0%,
+      color-mix(in oklab, var(--color-magenta), #000 var(--grad-dark-2, 20%)) 52%,
+      color-mix(in oklab, var(--color-pink), #000 var(--grad-dark-3, 24%)) 100%
+    );
+    background-size: 160% 160%;
+  }
+  .bg-aurora-soft {
+    background-image: linear-gradient(
+      120deg,
+      color-mix(in oklab, var(--color-iris) 26%, transparent),
+      color-mix(in oklab, var(--color-pink) 26%, transparent)
+    );
+  }
+
+  /* Conic ring for stories / live avatars */
+  .ring-aurora {
+    background: conic-gradient(
+      from 200deg,
+      var(--color-iris),
+      var(--color-pink),
+      var(--color-amber),
+      var(--color-cyan),
+      var(--color-iris)
+    );
+  }
+
+  /* Hide scrollbar on horizontally scrolled rails */
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   Utilities
+   ========================================================================== */
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .mask-fade-r {
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent);
+    mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  /* Drives the moving brand gradient + ambient blobs */
+  .animate-gradient {
+    animation: gradient-pan 8s ease-in-out infinite alternate;
+  }
+  .animate-float {
+    animation: float 9s var(--ease-out-soft) infinite;
+  }
+  .animate-spin-slow {
+    animation: spin 14s linear infinite;
+  }
+  .animate-shimmer {
+    animation: shimmer 2.2s linear infinite;
+  }
+}
+
+/* ============================================================================
+   Keyframes
+   ========================================================================== */
+
+@keyframes gradient-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Slow, organic drift for the aurora light blobs */
+@keyframes drift-a {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  33% {
+    transform: translate3d(6vw, 4vh, 0) scale(1.12);
+  }
+  66% {
+    transform: translate3d(-4vw, 8vh, 0) scale(0.95);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes drift-b {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-8vw, -6vh, 0) scale(1.15);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes drift-c {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+  40% {
+    transform: translate3d(7vw, -5vh, 0) scale(0.92);
+  }
+  80% {
+    transform: translate3d(-5vw, 3vh, 0) scale(1.18);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1.05);
+  }
+}
+
+.aurora-blob {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  will-change: transform;
+  pointer-events: none;
+}
+
+/* ============================================================================
+   Motion preferences
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Manual toggle (Settings → Reduce motion) */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* ============================================================================
+   View Transitions — the post lightbox morphs out of the clicked photo
+   (native API on Chromium/Safari; motion `layoutId` is the fallback elsewhere).
+   Give the morph the app's signature soft easing instead of the UA default.
+   ========================================================================== */
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.4s;
+    animation-timing-function: var(--ease-out-soft);
+  }
+}
