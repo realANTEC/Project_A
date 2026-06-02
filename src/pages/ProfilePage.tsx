@@ -1,9 +1,20 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Bookmark, Camera, Grid3x3, Heart, Link2, Sparkles, Tag } from 'lucide-react'
-import { avatar, currentUser, getProfile } from '@/data/feed'
+import { currentUser, getProfile, resolveAvatar, type Post, type User } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+import {
+  type DbProfile,
+  useFollowStats,
+  useIsFollowing,
+  useProfileByHandle,
+  useToggleFollow,
+  useUserPosts,
+} from '@/lib/profile'
+import { useStartConversation } from '@/lib/messages'
 import { usePostModal } from '@/lib/post-modal'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
@@ -26,75 +37,116 @@ function Stat({ n, label }: { n: number; label: string }) {
   )
 }
 
-export function ProfilePage() {
-  const { handle } = useParams()
-  const profile = getProfile(handle ?? currentUser.handle)
+function Spinner() {
+  return (
+    <div className="grid place-items-center py-20" aria-label="Loading" role="status">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-white/70" />
+    </div>
+  )
+}
+
+type ProfileViewProps = {
+  user: User
+  bio?: string | null
+  website?: string | null
+  stats: { posts: number; followers: number; following: number }
+  grid: Post[]
+  gridLoading?: boolean
+  isYou: boolean
+  isFollowing?: boolean
+  onToggleFollow?: () => void
+  onMessage?: () => void
+  actionsBusy?: boolean
+}
+
+/** Shared profile presentation — fed by either real DB data or curated mock data. */
+function ProfileView({
+  user,
+  bio,
+  website,
+  stats,
+  grid,
+  gridLoading,
+  isYou,
+  isFollowing,
+  onToggleFollow,
+  onMessage,
+  actionsBusy,
+}: ProfileViewProps) {
   const { openPost } = usePostModal()
   const [tab, setTab] = useState<'posts' | 'tagged'>('posts')
-  const isYou = profile.user.handle === currentUser.handle
 
   return (
     <Page className="mx-auto max-w-[935px]">
       {/* Header */}
       <header className="glass edge-light mt-2 rounded-4xl p-6 sm:p-8 lg:mt-6">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
-          <Avatar
-            src={avatar(profile.user.avatarId)}
-            alt={profile.user.name}
-            size={104}
-            ring="aurora"
-            className="shrink-0"
-          />
+          <Avatar src={resolveAvatar(user)} alt={user.name} size={104} ring="aurora" className="shrink-0" />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">
               <h1 className="flex items-center gap-2 text-xl font-semibold text-white">
-                {profile.user.name}
-                {profile.user.verified && <VerifiedBadge className="h-[18px] w-[18px]" />}
+                {user.name}
+                {user.verified && <VerifiedBadge className="h-[18px] w-[18px]" />}
               </h1>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  className={cn(
-                    'rounded-xl px-5 py-2 text-sm font-semibold transition',
-                    isYou
-                      ? 'glass-inset text-white hover:bg-white/[0.08]'
-                      : 'bg-aurora text-white shadow-[var(--shadow-glow-violet)] hover:scale-[1.03]',
-                  )}
-                >
-                  {isYou ? 'Edit profile' : 'Follow'}
-                </button>
-                {!isYou && (
+                {isYou ? (
                   <button
                     type="button"
                     className="glass-inset rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
                   >
-                    Message
+                    Edit profile
                   </button>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={onToggleFollow}
+                      disabled={actionsBusy}
+                      className={cn(
+                        'rounded-xl px-5 py-2 text-sm font-semibold transition disabled:opacity-60',
+                        isFollowing
+                          ? 'glass-inset text-white hover:bg-white/[0.08]'
+                          : 'bg-aurora text-white shadow-[var(--shadow-glow-violet)] hover:scale-[1.03]',
+                      )}
+                    >
+                      {isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onMessage}
+                      disabled={actionsBusy}
+                      className="glass-inset rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08] disabled:opacity-60"
+                    >
+                      Message
+                    </button>
+                  </>
                 )}
               </div>
             </div>
 
-            <p className="mt-1 text-center text-sm text-white/55 sm:text-left">@{profile.user.handle}</p>
+            <p className="mt-1 text-center text-sm text-white/55 sm:text-left">@{user.handle}</p>
 
             <div className="mt-4 flex justify-center gap-8 sm:justify-start">
-              <Stat n={profile.stats.posts} label="posts" />
-              <Stat n={profile.stats.followers} label="followers" />
-              <Stat n={profile.stats.following} label="following" />
+              <Stat n={stats.posts} label="posts" />
+              <Stat n={stats.followers} label="followers" />
+              <Stat n={stats.following} label="following" />
             </div>
 
-            <p className="mt-4 whitespace-pre-line text-center text-sm leading-relaxed text-white/80 sm:text-left">
-              {profile.bio}
-            </p>
-            {profile.website && (
+            {bio && (
+              <p className="mt-4 whitespace-pre-line text-center text-sm leading-relaxed text-white/80 sm:text-left">
+                {bio}
+              </p>
+            )}
+            {website && (
               <a
-                href={`https://${profile.website}`}
+                href={`https://${website}`}
                 target="_blank"
                 rel="noreferrer"
                 className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-lilac transition hover:text-white"
               >
                 <Link2 className="h-3.5 w-3.5" />
-                {profile.website}
+                {website}
               </a>
             )}
           </div>
@@ -133,11 +185,22 @@ export function ProfilePage() {
 
       {/* Grid */}
       {tab === 'posts' ? (
-        <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-3">
-          {profile.grid.map((post, i) => (
-            <PhotoTile key={`${post.id}-${i}`} post={post} index={i} onOpen={(el) => openPost(post, el)} />
-          ))}
-        </div>
+        gridLoading ? (
+          <Spinner />
+        ) : grid.length === 0 ? (
+          <div className="grid place-items-center gap-3 py-20 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10">
+              <Camera className="h-7 w-7 text-white/55" />
+            </span>
+            <p className="text-sm text-white/55">No posts yet.</p>
+          </div>
+        ) : (
+          <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-3">
+            {grid.map((post, i) => (
+              <PhotoTile key={`${post.id}-${i}`} post={post} index={i} onOpen={(el) => openPost(post, el)} />
+            ))}
+          </div>
+        )
       ) : (
         <div className="grid place-items-center gap-3 py-20 text-center">
           <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10">
@@ -148,4 +211,74 @@ export function ProfilePage() {
       )}
     </Page>
   )
+}
+
+/** Real, Postgres-backed profile (posts grid, follow counts, follow/message). */
+function RealProfile({ profile }: { profile: DbProfile }) {
+  const { session } = useAuth()
+  const navigate = useNavigate()
+  const isYou = session?.user.id === profile.id
+  const posts = useUserPosts(profile.id)
+  const stats = useFollowStats(profile.id)
+  const following = useIsFollowing(profile.id)
+  const toggleFollow = useToggleFollow()
+  const startConversation = useStartConversation()
+  const isFollowing = following.data ?? false
+
+  return (
+    <ProfileView
+      user={profile.user}
+      bio={profile.bio}
+      website={profile.website}
+      stats={{
+        posts: posts.data?.length ?? 0,
+        followers: stats.data?.followers ?? 0,
+        following: stats.data?.following ?? 0,
+      }}
+      grid={posts.data ?? []}
+      gridLoading={posts.isLoading}
+      isYou={isYou}
+      isFollowing={isFollowing}
+      onToggleFollow={() => toggleFollow.mutate({ profileId: profile.id, following: isFollowing })}
+      onMessage={() =>
+        startConversation.mutate(profile.id, { onSuccess: (convId) => navigate(`/messages/${convId}`) })
+      }
+      actionsBusy={toggleFollow.isPending || startConversation.isPending}
+    />
+  )
+}
+
+/** Curated / local-mode profile from mock data. */
+function MockProfile({ handle }: { handle: string }) {
+  const profile = getProfile(handle)
+  return (
+    <ProfileView
+      user={profile.user}
+      bio={profile.bio}
+      website={profile.website}
+      stats={profile.stats}
+      grid={profile.grid}
+      isYou={profile.user.handle === currentUser.handle}
+    />
+  )
+}
+
+/** Resolve the @handle to a real DB profile, falling back to curated mock data. */
+function ResolvedProfile({ handle }: { handle: string }) {
+  const { data: profile, isLoading } = useProfileByHandle(handle)
+  if (isLoading)
+    return (
+      <Page className="mx-auto max-w-[935px]">
+        <div className="glass edge-light mt-2 rounded-4xl p-10 lg:mt-6">
+          <Spinner />
+        </div>
+      </Page>
+    )
+  return profile ? <RealProfile profile={profile} /> : <MockProfile handle={handle} />
+}
+
+export function ProfilePage() {
+  const { handle } = useParams()
+  const h = handle ?? currentUser.handle
+  return isSupabaseConfigured ? <ResolvedProfile handle={h} /> : <MockProfile handle={h} />
 }

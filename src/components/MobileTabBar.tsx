@@ -2,6 +2,7 @@ import { Compass, Heart, Home, type LucideIcon, Plus } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { avatar, currentUser } from '@/data/feed'
 import { cn } from '@/lib/cn'
+import { useAuth } from '@/lib/auth'
 import { useCompose } from '@/lib/compose'
 import { Avatar } from './Avatar'
 
@@ -26,6 +27,13 @@ function NavTab({ to, icon: Icon, label }: { to: string; icon: LucideIcon; label
 /** Floating glass tab bar for small screens. */
 export function MobileTabBar() {
   const { openCompose } = useCompose()
+  const { profile } = useAuth()
+  const myHandle = profile?.username ?? currentUser.handle
+  const myAvatar =
+    profile?.avatar_url ??
+    (profile
+      ? `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(profile.id)}`
+      : avatar(currentUser.avatarId))
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 lg:hidden"
@@ -43,12 +51,8 @@ export function MobileTabBar() {
           <Plus className="h-6 w-6" strokeWidth={2.5} />
         </button>
         <NavTab to="/notifications" icon={Heart} label="Notifications" />
-        <NavLink
-          to={`/u/${currentUser.handle}`}
-          aria-label="Profile"
-          className="grid h-11 w-11 place-items-center"
-        >
-          <Avatar src={avatar(currentUser.avatarId)} alt="You" size={28} ring="aurora" />
+        <NavLink to={`/u/${myHandle}`} aria-label="Profile" className="grid h-11 w-11 place-items-center">
+          <Avatar src={myAvatar} alt="Your profile" size={28} ring="aurora" />
         </NavLink>
       </div>
     </nav>

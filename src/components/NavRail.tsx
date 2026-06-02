@@ -12,6 +12,7 @@ import {
 import { Link, NavLink } from 'react-router-dom'
 import { avatar, currentUser } from '@/data/feed'
 import { cn } from '@/lib/cn'
+import { useAuth } from '@/lib/auth'
 import { useCompose } from '@/lib/compose'
 import { Avatar } from './Avatar'
 import { Brand } from './Brand'
@@ -58,6 +59,17 @@ function Row({ item, active }: { item: Item; active: boolean }) {
 /** Left navigation rail — brand, primary nav, create CTA, account chip. */
 export function NavRail() {
   const { openCompose } = useCompose()
+  const { profile } = useAuth()
+  const myHandle = profile?.username ?? currentUser.handle
+  const myName = profile?.name ?? 'You'
+  const myAvatar =
+    profile?.avatar_url ??
+    (profile
+      ? `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(profile.id)}`
+      : avatar(currentUser.avatarId))
+  // Point the Profile link at the signed-in user's real @handle (mock fallback in local mode).
+  const items = ITEMS.map((it) => (it.label === 'Profile' ? { ...it, to: `/u/${myHandle}` } : it))
+
   return (
     <nav className="flex h-full flex-col gap-2 py-6 pr-2">
       <Link to="/" className="w-fit rounded-xl px-3.5 pb-4">
@@ -65,7 +77,7 @@ export function NavRail() {
       </Link>
 
       <ul className="flex flex-col gap-1">
-        {ITEMS.map((item) => (
+        {items.map((item) => (
           <li key={item.label}>
             {item.to ? (
               <NavLink to={item.to} end={item.to === '/'} className="block">
@@ -90,11 +102,11 @@ export function NavRail() {
       </button>
 
       <div className="glass-inset mt-auto flex items-center gap-2 rounded-2xl p-2.5">
-        <Link to={`/u/${currentUser.handle}`} className="flex min-w-0 flex-1 items-center gap-3">
-          <Avatar src={avatar(currentUser.avatarId)} alt="You" size={38} online />
+        <Link to={`/u/${myHandle}`} className="flex min-w-0 flex-1 items-center gap-3">
+          <Avatar src={myAvatar} alt={myName} size={38} online />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-white">You</p>
-            <p className="truncate text-xs text-white/55">@{currentUser.handle}</p>
+            <p className="truncate text-sm font-semibold text-white">{myName}</p>
+            <p className="truncate text-xs text-white/55">@{myHandle}</p>
           </div>
         </Link>
         <Link
