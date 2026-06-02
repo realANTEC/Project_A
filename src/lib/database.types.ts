@@ -93,6 +93,12 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['comments']['Insert']>
         Relationships: []
       }
+      comment_likes: {
+        Row: { user_id: string; comment_id: string; created_at: Ts }
+        Insert: { user_id: string; comment_id: string; created_at?: Ts }
+        Update: Partial<Database['public']['Tables']['comment_likes']['Insert']>
+        Relationships: []
+      }
       follows: {
         Row: { follower_id: string; following_id: string; created_at: Ts }
         Insert: { follower_id: string; following_id: string; created_at?: Ts }
@@ -106,8 +112,8 @@ export type Database = {
         Relationships: []
       }
       conversation_members: {
-        Row: { conversation_id: string; user_id: string }
-        Insert: { conversation_id: string; user_id: string }
+        Row: { conversation_id: string; user_id: string; last_read_at: string | null }
+        Insert: { conversation_id: string; user_id: string; last_read_at?: string | null }
         Update: Partial<Database['public']['Tables']['conversation_members']['Insert']>
         Relationships: []
       }

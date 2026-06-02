@@ -127,6 +127,22 @@ create policy "comments_insert_own" on public.comments for insert with check (au
 create policy "comments_delete_own" on public.comments for delete using (auth.uid() = author_id);
 create index if not exists comments_post_idx on public.comments (post_id, created_at);
 
+-- ---- comment likes ---------------------------------------------------------
+create table if not exists public.comment_likes (
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  comment_id uuid not null references public.comments (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, comment_id)
+);
+alter table public.comment_likes enable row level security;
+drop policy if exists "comment_likes_select" on public.comment_likes;
+drop policy if exists "comment_likes_insert_own" on public.comment_likes;
+drop policy if exists "comment_likes_delete_own" on public.comment_likes;
+create policy "comment_likes_select" on public.comment_likes for select using (true);
+create policy "comment_likes_insert_own" on public.comment_likes for insert with check (auth.uid() = user_id);
+create policy "comment_likes_delete_own" on public.comment_likes for delete using (auth.uid() = user_id);
+create index if not exists comment_likes_comment_idx on public.comment_likes (comment_id);
+
 -- ---- follows ---------------------------------------------------------------
 create table if not exists public.follows (
   follower_id uuid not null references public.profiles (id) on delete cascade,
@@ -160,6 +176,8 @@ create table if not exists public.messages (
   body text not null check (char_length(body) between 1 and 4000),
   created_at timestamptz not null default now()
 );
+-- Per-member read cursor for unread counts (idempotent; safe to re-run on existing data).
+alter table public.conversation_members add column if not exists last_read_at timestamptz;
 alter table public.conversations enable row level security;
 alter table public.conversation_members enable row level security;
 alter table public.messages enable row level security;
@@ -176,12 +194,14 @@ drop policy if exists "conversations_select_member" on public.conversations;
 drop policy if exists "conversations_insert_authed" on public.conversations;
 drop policy if exists "members_select_member" on public.conversation_members;
 drop policy if exists "members_insert_authed" on public.conversation_members;
+drop policy if exists "members_update_self" on public.conversation_members;
 drop policy if exists "messages_select_member" on public.messages;
 drop policy if exists "messages_insert_member" on public.messages;
 create policy "conversations_select_member" on public.conversations for select using (public.is_member(id));
 create policy "conversations_insert_authed" on public.conversations for insert with check (auth.uid() is not null);
 create policy "members_select_member" on public.conversation_members for select using (public.is_member(conversation_id));
 create policy "members_insert_authed" on public.conversation_members for insert with check (auth.uid() is not null);
+create policy "members_update_self" on public.conversation_members for update using (user_id = auth.uid());
 create policy "messages_select_member" on public.messages for select using (public.is_member(conversation_id));
 create policy "messages_insert_member" on public.messages
   for insert with check (auth.uid() = sender_id and public.is_member(conversation_id));
@@ -207,7 +227,7 @@ create policy "media_owner_delete" on storage.objects
 do $$
 declare t text;
 begin
-  foreach t in array array['posts', 'comments', 'likes', 'messages'] loop
+  foreach t in array array['posts', 'comments', 'likes', 'messages', 'follows', 'comment_likes'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
