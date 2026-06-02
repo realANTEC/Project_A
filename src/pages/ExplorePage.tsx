@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'motion/react'
 import { Heart, MessageCircle } from 'lucide-react'
 import { explorePosts, type Post } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { useFeedPosts } from '@/lib/posts'
 import { fallbackLayoutId, usePostModal } from '@/lib/post-modal'
 import { Page } from '@/components/Page'
 
@@ -59,6 +61,12 @@ function ExploreTile({
 export function ExplorePage() {
   const { openPost } = usePostModal()
   const [filter, setFilter] = useState(0)
+  // Real DB posts layered over the curated mosaic (newest first), like the home feed.
+  const { data: dbPosts = [] } = useFeedPosts()
+  const posts = useMemo(
+    () => (isSupabaseConfigured ? [...dbPosts, ...explorePosts] : explorePosts),
+    [dbPosts],
+  )
 
   return (
     <Page>
@@ -86,7 +94,7 @@ export function ExplorePage() {
 
       {/* Masonry mosaic */}
       <div className="columns-2 gap-3 sm:columns-3">
-        {explorePosts.map((post, i) => (
+        {posts.map((post, i) => (
           <ExploreTile key={post.id} post={post} index={i} onOpen={(el) => openPost(post, el)} />
         ))}
       </div>
