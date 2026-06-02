@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/lib/theme'
 import { AuthProvider, useAuth } from '@/lib/auth'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useFeedRealtime } from '@/lib/realtime'
+import { useInboxRealtime } from '@/lib/messages'
 import { FeedProvider } from '@/lib/feed-store'
 import { PresenceProvider } from '@/lib/presence'
 import { PostModalProvider } from '@/lib/post-modal'
@@ -41,6 +42,7 @@ function Splash() {
 function AppShell() {
   const { ready, session } = useAuth()
   useFeedRealtime()
+  useInboxRealtime()
 
   if (!ready) return <Splash />
   if (isSupabaseConfigured && !session) return <AuthGate />

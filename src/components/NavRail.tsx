@@ -13,6 +13,8 @@ import { Link, NavLink } from 'react-router-dom'
 import { avatar, currentUser } from '@/data/feed'
 import { cn } from '@/lib/cn'
 import { useAuth } from '@/lib/auth'
+import { isSupabaseConfigured } from '@/lib/supabase'
+import { useConversations } from '@/lib/messages'
 import { useCompose } from '@/lib/compose'
 import { Avatar } from './Avatar'
 import { Brand } from './Brand'
@@ -67,8 +69,14 @@ export function NavRail() {
     (profile
       ? `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(profile.id)}`
       : avatar(currentUser.avatarId))
-  // Point the Profile link at the signed-in user's real @handle (mock fallback in local mode).
-  const items = ITEMS.map((it) => (it.label === 'Profile' ? { ...it, to: `/u/${myHandle}` } : it))
+  const { data: conversations = [] } = useConversations()
+  const unread = conversations.reduce((n, c) => n + c.unread, 0)
+  // Point Profile at the signed-in user's real @handle; show the real unread total on Messages.
+  const items = ITEMS.map((it) => {
+    if (it.label === 'Profile') return { ...it, to: `/u/${myHandle}` }
+    if (it.label === 'Messages') return { ...it, badge: isSupabaseConfigured ? unread || undefined : it.badge }
+    return it
+  })
 
   return (
     <nav className="flex h-full flex-col gap-2 py-6 pr-2">

@@ -27,10 +27,9 @@ type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages:
 
 /** Every conversation the signed-in user belongs to, most-recent activity first. */
 export function useConversations() {
-  const qc = useQueryClient()
   const { session } = useAuth()
   const myId = session?.user.id
-  const query = useQuery({
+  return useQuery({
     queryKey: ['conversations'],
     enabled: !!supabase && !!session,
     queryFn: async (): Promise<DbConversation[]> => {
@@ -66,11 +65,18 @@ export function useConversations() {
         .sort((a, b) => b.lastAt.localeCompare(a.lastAt))
     },
   })
+}
 
-  // Live inbox: when someone else's message lands in any conversation I'm in, the
-  // list reorders + previews refresh live (no manual refetch / navigation). RLS scopes
-  // realtime delivery to my conversations. Safe now that the open thread is pinned by
-  // the URL (see MessagesPage) — reordering the list never switches the active thread.
+/**
+ * App-wide live inbox: refreshes `['conversations']` whenever someone else messages me, so
+ * the conversation list AND the nav unread badge stay live on every route. Call ONCE
+ * (in AppShell). RLS scopes realtime delivery to my conversations; the open thread is
+ * URL-pinned (see MessagesPage) so a reorder never switches it.
+ */
+export function useInboxRealtime() {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const myId = session?.user.id
   useEffect(() => {
     if (!supabase || !myId) return
     const client = supabase
@@ -85,8 +91,6 @@ export function useConversations() {
       void client.removeChannel(channel)
     }
   }, [myId, qc])
-
-  return query
 }
 
 /** Mark a conversation read for the signed-in user (advances their last_read_at). */
