@@ -5,7 +5,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const REPO_URL = 'https://github.com/realANTEC/Project_A'
 
-/** Truthful "About Aurora" dialog — the real destination behind the footer links. */
+/** Truthful "About Soul" dialog — the real destination behind the footer links. */
 export function AboutModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const trapRef = useFocusTrap<HTMLDivElement>(open)
 
@@ -37,7 +37,7 @@ export function AboutModal({ open, onClose }: { open: boolean; onClose: () => vo
             ref={trapRef}
             role="dialog"
             aria-modal="true"
-            aria-label="About Aurora"
+            aria-label="About Soul"
             initial={{ scale: 0.94, y: 18, opacity: 0 }}
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.96, y: 12, opacity: 0 }}
@@ -46,7 +46,7 @@ export function AboutModal({ open, onClose }: { open: boolean; onClose: () => vo
           >
             <header className="flex items-center justify-between border-b border-white/[0.07] px-5 py-3.5">
               <h2 className="font-display flex items-center gap-2 text-sm font-semibold text-white">
-                <Sparkles className="h-4 w-4 text-lilac" /> About Aurora
+                <Sparkles className="h-4 w-4 text-lilac" /> About Soul
               </h2>
               <button
                 type="button"
@@ -60,7 +60,7 @@ export function AboutModal({ open, onClose }: { open: boolean; onClose: () => vo
 
             <div className="flex flex-col gap-4 p-5">
               <p className="text-sm leading-relaxed text-white/80">
-                Aurora is a design-led, visual-first social app — a portfolio demo exploring a luminous
+                Soul is a design-led, visual-first social app — a portfolio demo exploring a luminous
                 “aurora glass” aesthetic, built on React, Vite, TypeScript, Tailwind, and a real Supabase
                 backend.
               </p>
@@ -77,7 +77,7 @@ export function AboutModal({ open, onClose }: { open: boolean; onClose: () => vo
               >
                 <ExternalLink className="h-4 w-4" /> View source on GitHub
               </a>
-              <p className="text-center text-[11px] text-white/40">© 2026 Aurora — made with light.</p>
+              <p className="text-center text-[11px] text-white/40">© 2026 Soul — made with light.</p>
             </div>
           </motion.div>
         </motion.div>

@@ -5,10 +5,10 @@ import { Brand } from './Brand'
 describe('Brand', () => {
   it('renders the wordmark', () => {
     render(<Brand />)
-    expect(screen.getByText('Aurora')).toBeInTheDocument()
+    expect(screen.getByText('Soul')).toBeInTheDocument()
   })
   it('hides the wordmark when compact', () => {
     render(<Brand compact />)
-    expect(screen.queryByText('Aurora')).not.toBeInTheDocument()
+    expect(screen.queryByText('Soul')).not.toBeInTheDocument()
   })
 })

@@ -47,7 +47,7 @@ function RealSuggestions() {
   const list = people.filter((u) => !following.has(u.id)).slice(0, 5)
 
   if (list.length === 0)
-    return <p className="mt-4 text-xs text-white/55">No suggestions yet — invite a friend to Aurora.</p>
+    return <p className="mt-4 text-xs text-white/55">No suggestions yet — invite a friend to Soul.</p>
 
   return (
     <ul className="mt-4 space-y-4">
@@ -90,7 +90,7 @@ export function RightRail() {
         className="glass-inset flex w-full items-center gap-2.5 rounded-2xl px-4 py-3 text-left text-sm text-white/55 transition hover:text-white/70"
       >
         <Search className="h-[18px] w-[18px] shrink-0" />
-        <span className="flex-1">Search Aurora</span>
+        <span className="flex-1">Search Soul</span>
         <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/50">⌘K</kbd>
       </button>
 
@@ -146,7 +146,7 @@ export function RightRail() {
             </button>
           ))}
         </p>
-        <p className="mt-2.5">© 2026 Aurora — made with light.</p>
+        <p className="mt-2.5">© 2026 Soul — made with light.</p>
       </footer>
 
       {/* Portaled to <body>: this right-rail <aside> is display:none below xl, and a

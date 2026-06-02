@@ -230,7 +230,7 @@ export const stories: Story[] = [
 
 export const suggestions: { user: User; reason: string }[] = [
   { user: u.diego, reason: 'Followed by maralin + 4 more' },
-  { user: u.leo, reason: 'New to Aurora' },
+  { user: u.leo, reason: 'New to Soul' },
   { user: u.hana, reason: 'Followed by amara.shoots' },
 ]
 
@@ -358,7 +358,7 @@ const BIOS: Record<string, { bio: string; website?: string; followers: number; f
     following: 274,
   },
   you: {
-    bio: 'Collecting beautiful things on Aurora ✦',
+    bio: 'Collecting beautiful things on Soul ✦',
     followers: 1280,
     following: 342,
   },

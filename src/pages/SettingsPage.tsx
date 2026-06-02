@@ -135,7 +135,7 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <p className="mt-8 text-center text-xs text-white/55">Aurora ✦ made with light</p>
+      <p className="mt-8 text-center text-xs text-white/55">Soul ✦ made with light</p>
     </Page>
   )
 }

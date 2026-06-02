@@ -187,7 +187,7 @@ function NewConversation({
         {isLoading && <p className="px-3 py-6 text-sm text-white/55">Loading people…</p>}
         {!isLoading && profiles.length === 0 && (
           <p className="px-3 py-10 text-center text-sm text-white/55">
-            No one else has signed in yet. Open Aurora in another browser to chat.
+            No one else has signed in yet. Open Soul in another browser to chat.
           </p>
         )}
         {profiles.map((p) => (

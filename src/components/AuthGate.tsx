@@ -86,7 +86,7 @@ export function AuthGate() {
           <div className="flex flex-col items-center text-center">
             <Brand />
             <h1 className="mt-6 font-display text-2xl font-bold text-white">
-              {mode === 'signin' ? 'Welcome back' : 'Join Aurora'}
+              {mode === 'signin' ? 'Welcome back' : 'Join Soul'}
             </h1>
             <p className="mt-1 text-sm text-white/50">
               {mode === 'signin'
