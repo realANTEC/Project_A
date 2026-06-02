@@ -1,4 +1,4 @@
-# Aurora ✦
+# Soul ✦
 
 A visual-first social experience rendered on **living glass** — a near-black canvas lit by
 slow-drifting aurora light, with frosted-glass surfaces, luminous gradients, real depth, and
@@ -9,7 +9,7 @@ physical micro-interactions.
 > **immersive post lightbox** — on one glass-and-light design language. Likes, bookmarks &
 > comments **persist**, and a live **accent theme** recolors the entire aurora.
 
-![Aurora — home feed](public/aurora.svg)
+![Soul](public/soul.svg)
 
 ## Stack
 
@@ -112,4 +112,4 @@ threaded **replies**, **optimistic** server sync, and a real **backend / auth**.
 
 ---
 
-Made with light. © 2026 Aurora.
+Made with light. © 2026 Soul.

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Aurora — a visual-first social experience rendered on living glass.",
+  "description": "Soul — a visual-first social experience rendered on living glass.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

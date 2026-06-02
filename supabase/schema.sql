@@ -1,5 +1,5 @@
 -- ============================================================================
--- Aurora — Supabase schema
+-- Soul — Supabase schema
 -- Paste this whole file into the Supabase SQL Editor and click "Run".
 -- It is idempotent (safe to re-run). Then add your project URL + anon key to
 -- .env.local (see .env.local.example) and restart the dev server.
