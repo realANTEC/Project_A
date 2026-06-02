@@ -1,4 +1,4 @@
-import { Compass, Heart, Home, type LucideIcon, Plus } from 'lucide-react'
+import { Bookmark, Compass, Home, type LucideIcon, Plus } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { avatar, currentUser } from '@/data/feed'
 import { cn } from '@/lib/cn'
@@ -50,7 +50,7 @@ export function MobileTabBar() {
         >
           <Plus className="h-6 w-6" strokeWidth={2.5} />
         </button>
-        <NavTab to="/notifications" icon={Heart} label="Notifications" />
+        <NavTab to="/saved" icon={Bookmark} label="Saved" />
         <NavLink to={`/u/${myHandle}`} aria-label="Profile" className="grid h-11 w-11 place-items-center">
           <Avatar src={myAvatar} alt="Your profile" size={28} ring="aurora" />
         </NavLink>
