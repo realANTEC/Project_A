@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { Bookmark, Camera, Grid3x3, Heart, Link2, Sparkles, Tag } from 'lucide-react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Bookmark, Camera, Grid3x3, Heart, Link2, Settings, Sparkles, Tag } from 'lucide-react'
 import { currentUser, getProfile, resolveAvatar, type Post, type User } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -108,13 +108,22 @@ function ProfileView({
               </h1>
               <div className="flex gap-2">
                 {isYou ? (
-                  <button
-                    type="button"
-                    onClick={onEditProfile}
-                    className="glass-inset rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
-                  >
-                    Edit profile
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={onEditProfile}
+                      className="glass-inset rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/[0.08]"
+                    >
+                      Edit profile
+                    </button>
+                    <Link
+                      to="/settings"
+                      aria-label="Settings"
+                      className="glass-inset grid place-items-center rounded-xl px-3 py-2 text-white/75 transition hover:bg-white/[0.08] hover:text-white"
+                    >
+                      <Settings className="h-[18px] w-[18px]" />
+                    </Link>
+                  </>
                 ) : (
                   <>
                     <button
