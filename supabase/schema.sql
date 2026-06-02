@@ -159,6 +159,29 @@ create policy "follows_select" on public.follows for select using (true);
 create policy "follows_insert_own" on public.follows for insert with check (auth.uid() = follower_id);
 create policy "follows_delete_own" on public.follows for delete using (auth.uid() = follower_id);
 
+-- ---- notifications ---------------------------------------------------------
+-- Created client-side by the actor (the person who followed/liked/commented) for the
+-- recipient. RLS: you read your own, and you may only insert ones where you are the actor.
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  actor_id uuid not null references public.profiles (id) on delete cascade,
+  type text not null check (type in ('follow', 'like', 'comment')),
+  post_id uuid references public.posts (id) on delete cascade,
+  comment_id uuid references public.comments (id) on delete cascade,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.notifications enable row level security;
+drop policy if exists "notifications_select_own" on public.notifications;
+drop policy if exists "notifications_insert_actor" on public.notifications;
+drop policy if exists "notifications_update_own" on public.notifications;
+create policy "notifications_select_own" on public.notifications for select using (user_id = auth.uid());
+create policy "notifications_insert_actor" on public.notifications
+  for insert with check (actor_id = auth.uid() and actor_id <> user_id);
+create policy "notifications_update_own" on public.notifications for update using (user_id = auth.uid());
+create index if not exists notifications_user_idx on public.notifications (user_id, created_at desc);
+
 -- ---- direct messages -------------------------------------------------------
 create table if not exists public.conversations (
   id uuid primary key default gen_random_uuid(),
@@ -227,7 +250,7 @@ create policy "media_owner_delete" on storage.objects
 do $$
 declare t text;
 begin
-  foreach t in array array['posts', 'comments', 'likes', 'messages', 'follows', 'comment_likes'] loop
+  foreach t in array array['posts', 'comments', 'likes', 'messages', 'follows', 'comment_likes', 'notifications'] loop
     if not exists (
       select 1 from pg_publication_tables
       where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t

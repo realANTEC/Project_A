@@ -105,6 +105,30 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['follows']['Insert']>
         Relationships: []
       }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          actor_id: string
+          type: 'follow' | 'like' | 'comment'
+          post_id: string | null
+          comment_id: string | null
+          read: boolean
+          created_at: Ts
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          actor_id: string
+          type: 'follow' | 'like' | 'comment'
+          post_id?: string | null
+          comment_id?: string | null
+          read?: boolean
+          created_at?: Ts
+        }
+        Update: Partial<Database['public']['Tables']['notifications']['Insert']>
+        Relationships: []
+      }
       conversations: {
         Row: { id: string; created_at: Ts }
         Insert: { id?: string; created_at?: Ts }
