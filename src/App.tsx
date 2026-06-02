@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from '@/lib/auth'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useFeedRealtime } from '@/lib/realtime'
 import { useInboxRealtime } from '@/lib/messages'
+import { useNotificationsRealtime } from '@/lib/notifications'
 import { FeedProvider } from '@/lib/feed-store'
 import { PresenceProvider } from '@/lib/presence'
 import { PostModalProvider } from '@/lib/post-modal'
@@ -43,6 +44,7 @@ function AppShell() {
   const { ready, session } = useAuth()
   useFeedRealtime()
   useInboxRealtime()
+  useNotificationsRealtime()
 
   if (!ready) return <Splash />
   if (isSupabaseConfigured && !session) return <AuthGate />

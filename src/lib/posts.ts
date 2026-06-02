@@ -54,6 +54,7 @@ export function rowToPost(r: DbPostRow): Post {
   return {
     id: r.id,
     author: authorToUser(r.author, r.author_id),
+    authorId: r.author_id,
     image: r.image_url,
     aspect: r.aspect,
     tint,

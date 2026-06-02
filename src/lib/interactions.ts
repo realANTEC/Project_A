@@ -4,6 +4,7 @@ import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { displayLikes, useFeed } from './feed-store'
 import { authorToUser, type DbAuthor, type DbPostRow, POST_SELECT, rowToPost } from './posts'
+import { notify } from './notifications'
 import type { Post, User } from '@/data/feed'
 
 const MY_LIKES = ['my-likes'] as const
@@ -70,12 +71,21 @@ function useToggleLikeDb() {
   const qc = useQueryClient()
   const { session } = useAuth()
   return useMutation({
-    mutationFn: async ({ postId, liked }: { postId: string; liked: boolean }) => {
+    mutationFn: async ({
+      postId,
+      liked,
+      authorId,
+    }: {
+      postId: string
+      liked: boolean
+      authorId?: string
+    }) => {
       if (!supabase || !session) throw new Error('Not signed in')
       const res = liked
         ? await supabase.from('likes').delete().eq('user_id', session.user.id).eq('post_id', postId)
         : await supabase.from('likes').insert({ user_id: session.user.id, post_id: postId })
       if (res.error) throw res.error
+      if (!liked) void notify({ recipientId: authorId, type: 'like', postId })
     },
     onMutate: async ({ postId, liked }) => {
       await qc.cancelQueries({ queryKey: MY_LIKES })
@@ -161,9 +171,9 @@ export function usePostInteractions(post: Post): PostInteractions {
       saved,
       likeCount: post.likes,
       commentCount: post.commentsCount,
-      toggleLike: () => toggleLikeDb.mutate({ postId: post.id, liked }),
+      toggleLike: () => toggleLikeDb.mutate({ postId: post.id, liked, authorId: post.authorId }),
       like: () => {
-        if (!liked) toggleLikeDb.mutate({ postId: post.id, liked: false })
+        if (!liked) toggleLikeDb.mutate({ postId: post.id, liked: false, authorId: post.authorId })
       },
       toggleSave: () => toggleSaveDb.mutate({ postId: post.id, saved }),
     }
@@ -305,16 +315,19 @@ function useAddCommentDb() {
       postId,
       body,
       parentId,
+      authorId,
     }: {
       postId: string
       body: string
       parentId?: string | null
+      authorId?: string
     }) => {
       if (!supabase || !session) throw new Error('Not signed in')
       const { error } = await supabase
         .from('comments')
         .insert({ post_id: postId, author_id: session.user.id, body, parent_id: parentId ?? null })
       if (error) throw error
+      void notify({ recipientId: authorId, type: 'comment', postId })
     },
     onMutate: async ({ postId, body, parentId }) => {
       const key = ['comments', postId]
@@ -434,7 +447,8 @@ export function usePostComments(post: Post): {
       thread: dbComments.data ?? [],
       addComment: (text, parentKey) => {
         const t = text.trim()
-        if (t) addCommentDb.mutate({ postId: post.id, body: t, parentId: parentKey ?? null })
+        if (t)
+          addCommentDb.mutate({ postId: post.id, body: t, parentId: parentKey ?? null, authorId: post.authorId })
       },
       likedComments: myCommentLikes.data ?? EMPTY_SET,
       toggleCommentLike: (commentId, liked) => {

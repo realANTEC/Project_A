@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { authorToUser, type DbAuthor, type DbPostRow, POST_SELECT, rowToPost } from './posts'
+import { notify } from './notifications'
 import type { Post, User } from '@/data/feed'
 
 /** A real, Postgres-backed profile (the @handle resolved to a row). */
@@ -289,6 +290,7 @@ export function useToggleFollow() {
             .eq('following_id', profileId)
         : await supabase.from('follows').insert({ follower_id: session.user.id, following_id: profileId })
       if (res.error) throw res.error
+      if (!following) void notify({ recipientId: profileId, type: 'follow' })
     },
     onMutate: async ({ profileId, following }) => {
       const followingKey = ['is-following', myId, profileId]

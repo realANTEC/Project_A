@@ -42,6 +42,8 @@ export type Post = {
   likedBy: User[]
   /** 'db' = real Postgres post (interactions hit Supabase); otherwise curated/local. */
   source?: 'db' | 'seed'
+  /** The author's real profile id (DB posts only) — recipient for like/comment notifications. */
+  authorId?: string
 }
 
 export type Story = {
