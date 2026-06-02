@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { relativeTime } from './format'
-import { type Aspect, type Post, type User } from '@/data/feed'
+import { explorePosts, posts as seedPosts, type Aspect, type Post, type User } from '@/data/feed'
 
 const FEED_KEY = ['feed'] as const
 
@@ -164,6 +164,48 @@ export function useCreatePost() {
     },
     onSettled: () => {
       void qc.invalidateQueries({ queryKey: FEED_KEY })
+    },
+  })
+}
+
+/** Resolve a single post by id — checks curated/seed posts first, then Postgres. */
+export function usePostById(id: string | undefined) {
+  return useQuery({
+    queryKey: ['post', id],
+    enabled: !!id,
+    queryFn: async (): Promise<Post | null> => {
+      const seed = [...seedPosts, ...explorePosts].find((p) => p.id === id)
+      if (seed) return seed
+      if (!supabase || !id) return null
+      const { data, error } = await supabase.from('posts').select(POST_SELECT).eq('id', id).maybeSingle()
+      if (error) throw error
+      return data ? rowToPost(data as unknown as DbPostRow) : null
+    },
+  })
+}
+
+/** Delete one of your own posts (RLS: posts_delete_own). Optimistically drops it from the feed. */
+export function useDeletePost() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      if (!supabase) throw new Error('Not configured')
+      const { error } = await supabase.from('posts').delete().eq('id', postId)
+      if (error) throw error
+    },
+    onMutate: async (postId: string) => {
+      await qc.cancelQueries({ queryKey: FEED_KEY })
+      const previous = qc.getQueryData<Post[]>(FEED_KEY)
+      qc.setQueryData<Post[]>(FEED_KEY, (old) => (old ?? []).filter((p) => p.id !== postId))
+      qc.setQueryData<Post[]>(['saved-posts'], (old) => old?.filter((p) => p.id !== postId))
+      return { previous }
+    },
+    onError: (_err, _postId, ctx) => {
+      if (ctx?.previous) qc.setQueryData(FEED_KEY, ctx.previous)
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: FEED_KEY })
+      void qc.invalidateQueries({ queryKey: ['user-posts'] })
     },
   })
 }

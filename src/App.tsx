@@ -27,6 +27,9 @@ const MessagesPage = lazy(() => import('@/pages/MessagesPage').then((m) => ({ de
 const SavedPage = lazy(() => import('@/pages/SavedPage').then((m) => ({ default: m.SavedPage })))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage').then((m) => ({ default: m.SettingsPage })))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage').then((m) => ({ default: m.ProfilePage })))
+const PostDetailPage = lazy(() =>
+  import('@/pages/PostDetailPage').then((m) => ({ default: m.PostDetailPage })),
+)
 
 function Splash() {
   return (
@@ -67,6 +70,7 @@ function AppShell() {
                     <Route path="saved" element={<SavedPage />} />
                     <Route path="settings" element={<SettingsPage />} />
                     <Route path="u/:handle" element={<ProfilePage />} />
+                    <Route path="p/:id" element={<PostDetailPage />} />
                     <Route path="*" element={<Navigate to="/" replace />} />
                   </Route>
                 </Routes>

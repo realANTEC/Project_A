@@ -94,7 +94,7 @@ function CommentItem({
 }
 
 /** The two-pane content; keyed by post id so its state resets per post. */
-function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void }) {
+export function PostDetailContent({ post, onClose }: { post: Post; onClose: () => void }) {
   const navigate = useNavigate()
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
   const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)

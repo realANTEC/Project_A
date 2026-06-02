@@ -1,12 +1,8 @@
 import { type Post } from '@/data/feed'
 
-/**
- * A real, resolvable link for a post. Posts have no dedicated route (the
- * detail view is a modal), so we link to the author's profile — the closest
- * honest destination, rather than a deep link that wouldn't open.
- */
+/** A real, deep-linkable URL for a post (resolves via the /p/:id route). */
 export function postUrl(post: Post): string {
-  return `${window.location.origin}/u/${post.author.handle}`
+  return `${window.location.origin}/p/${post.id}`
 }
 
 export type ShareResult = 'shared' | 'copied' | 'unavailable'
