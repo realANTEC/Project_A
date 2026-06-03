@@ -16,6 +16,24 @@ const GALLERY: Pick[] = explorePosts
   .slice(0, 12)
   .map((p) => ({ image: p.image, tint: p.tint, aspect: p.aspect }))
 
+// Curated caption ideas — a tasteful starting point the user can edit (no AI involved).
+const CAPTION_IDEAS = [
+  'Chasing the light until it chased me back.',
+  'Some mornings just ask to be kept.',
+  'Found this between two ordinary moments.',
+  'The quiet kind of gold.',
+  'Stood still long enough for the world to show off.',
+  'A small study in shadow and patience.',
+  'Everything softens at this hour.',
+  'Proof I was here, and it was beautiful.',
+  'Color did all the talking today.',
+  'One frame, forty tries, zero regrets.',
+]
+function suggestCaption(current: string): string {
+  const pool = CAPTION_IDEAS.filter((c) => c !== current.trim())
+  return pool[Math.floor(Math.random() * pool.length)] ?? CAPTION_IDEAS[0]
+}
+
 function ComposeBody({ onClose }: { onClose: () => void }) {
   const { addPost } = useFeed()
   const createPost = useCreatePost()
@@ -176,6 +194,7 @@ function ComposeBody({ onClose }: { onClose: () => void }) {
 
             <button
               type="button"
+              onClick={() => setCaption(suggestCaption(caption))}
               className="flex w-fit items-center gap-2 rounded-full bg-aurora-soft px-3 py-1.5 text-xs font-medium text-lilac ring-1 ring-white/10 transition hover:bg-white/10"
             >
               <Sparkles className="h-3.5 w-3.5" /> Suggest a caption

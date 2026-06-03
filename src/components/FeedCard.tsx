@@ -6,6 +6,7 @@ import { avatar, resolveAvatar, type Post } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import { usePostModal } from '@/lib/post-modal'
+import { useSearch } from '@/lib/search'
 import { usePostInteractions } from '@/lib/interactions'
 import { sharePost } from '@/lib/share'
 import { useToast } from '@/lib/toast'
@@ -48,6 +49,7 @@ function ActionButton({
 
 export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
   const { openPost } = usePostModal()
+  const { openSearch } = useSearch()
   const {
     liked,
     saved,
@@ -202,9 +204,14 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
         {post.tags.length > 0 && (
           <p className="mt-1.5 flex flex-wrap gap-x-2 text-[0.9rem] font-medium text-lilac">
             {post.tags.map((t) => (
-              <span key={t} className="cursor-pointer transition hover:text-pink">
+              <button
+                key={t}
+                type="button"
+                onClick={() => openSearch(t)}
+                className="transition hover:text-pink"
+              >
                 #{t}
-              </span>
+              </button>
             ))}
           </p>
         )}

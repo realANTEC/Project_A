@@ -1,11 +1,17 @@
+import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { FeedTabs } from './FeedTabs'
 
+function Harness() {
+  const [tab, setTab] = useState(0)
+  return <FeedTabs value={tab} onChange={setTab} />
+}
+
 describe('FeedTabs', () => {
   it('defaults to "For you" and switches selection on click', async () => {
-    render(<FeedTabs />)
+    render(<Harness />)
     const forYou = screen.getByRole('tab', { name: 'For you' })
     const following = screen.getByRole('tab', { name: 'Following' })
 
