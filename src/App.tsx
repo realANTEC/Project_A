@@ -1,5 +1,5 @@
-import { lazy } from 'react'
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { lazy, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, type Location } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/lib/theme'
 import { AuthProvider, useAuth } from '@/lib/auth'
@@ -46,12 +46,24 @@ function Splash() {
 
 function AppShell() {
   const { ready, session } = useAuth()
+  const location = useLocation()
+  // The history key of the first entry this app instance saw (a direct link or a reload).
+  const [initialKey] = useState(() => location.key)
   useFeedRealtime()
   useInboxRealtime()
   useNotificationsRealtime()
 
   if (!ready) return <Splash />
   if (isSupabaseConfigured && !session) return <AuthGate />
+
+  // Modal-as-route: an in-app post open pushes `/p/:id` with the feed stashed as
+  // `background`, so the feed stays mounted under the lightbox. The very first
+  // history entry (a direct link or a reload) ignores any rehydrated `background`
+  // and renders the full PostDetailPage instead of an empty feed.
+  const onInitialEntry = location.key === initialKey
+  const background = onInitialEntry
+    ? undefined
+    : (location.state as { background?: Location } | null)?.background
 
   return (
     <PresenceProvider>
@@ -60,7 +72,7 @@ function AppShell() {
           <PostModalProvider>
             <ComposeProvider>
               <SearchProvider>
-                <Routes>
+                <Routes location={background ?? location}>
                   <Route path="/" element={<Layout />}>
                     <Route index element={<HomePage />} />
                     <Route path="explore" element={<ExplorePage />} />

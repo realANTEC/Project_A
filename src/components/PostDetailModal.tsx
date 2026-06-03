@@ -95,15 +95,7 @@ function CommentItem({
 }
 
 /** The two-pane content; keyed by post id so its state resets per post. */
-export function PostDetailContent({
-  post,
-  onClose,
-  onAfterDelete,
-}: {
-  post: Post
-  onClose: () => void
-  onAfterDelete?: () => void
-}) {
+export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfterDelete?: () => void }) {
   const navigate = useNavigate()
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
   const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)
@@ -128,7 +120,7 @@ export function PostDetailContent({
   }
 
   function goToProfile() {
-    onClose()
+    // Navigating away from `/p/:id` lets the post-modal effect close the lightbox.
     navigate(`/u/${post.author.handle}`)
   }
   async function handleShare() {
@@ -377,12 +369,7 @@ export function PostDetailModal() {
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
             className="glass edge-light relative z-10 flex max-h-[90dvh] w-full max-w-[1040px] flex-col overflow-hidden rounded-4xl md:flex-row"
           >
-            <PostDetailContent
-              key={activePost.id}
-              post={activePost}
-              onClose={closePost}
-              onAfterDelete={closePost}
-            />
+            <PostDetailContent key={activePost.id} post={activePost} onAfterDelete={closePost} />
             <button
               type="button"
               onClick={closePost}

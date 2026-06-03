@@ -31,7 +31,7 @@ export function PostDetailPage() {
         </div>
       ) : post ? (
         <div className="glass edge-light flex max-h-[80dvh] w-full flex-col overflow-hidden rounded-4xl md:flex-row">
-          <PostDetailContent post={post} onClose={() => {}} onAfterDelete={() => navigate('/')} />
+          <PostDetailContent post={post} onAfterDelete={() => navigate('/')} />
         </div>
       ) : (
         <div className="glass edge-light grid place-items-center gap-4 rounded-4xl py-20 text-center">
