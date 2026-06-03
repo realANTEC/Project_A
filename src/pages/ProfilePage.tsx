@@ -17,12 +17,14 @@ import {
 import { useStartConversation } from '@/lib/messages'
 import { usePostModal } from '@/lib/post-modal'
 import { useSearch } from '@/lib/search'
+import { useCompose } from '@/lib/compose'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { PhotoTile } from '@/components/PhotoTile'
 import { EditProfileModal } from '@/components/EditProfileModal'
 import { FollowListModal } from '@/components/FollowListModal'
+import { EmptyState } from '@/components/EmptyState'
 
 const HIGHLIGHTS = [
   { label: 'Travel', icon: Sparkles },
@@ -91,6 +93,7 @@ function ProfileView({
 }: ProfileViewProps) {
   const { openPost } = usePostModal()
   const { openSearch } = useSearch()
+  const { openCompose } = useCompose()
   const [tab, setTab] = useState<'posts' | 'tagged'>('posts')
 
   return (
@@ -220,12 +223,12 @@ function ProfileView({
         gridLoading ? (
           <Spinner />
         ) : grid.length === 0 ? (
-          <div className="grid place-items-center gap-3 py-20 text-center">
-            <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10">
-              <Camera className="h-7 w-7 text-white/55" />
-            </span>
-            <p className="text-sm text-white/55">No posts yet.</p>
-          </div>
+          <EmptyState
+            icon={Camera}
+            title="No posts yet"
+            description={isYou ? 'Share your first photo to start your feed.' : undefined}
+            action={isYou ? { label: 'Share your first post', onClick: openCompose } : undefined}
+          />
         ) : (
           <div className="mt-4 grid grid-cols-3 gap-1.5 sm:gap-3">
             {grid.map((post, i) => (
@@ -234,12 +237,7 @@ function ProfileView({
           </div>
         )
       ) : (
-        <div className="grid place-items-center gap-3 py-20 text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10">
-            <Tag className="h-7 w-7 text-white/55" />
-          </span>
-          <p className="text-sm text-white/55">No tagged photos yet.</p>
-        </div>
+        <EmptyState icon={Tag} title="No tagged photos yet" />
       )}
     </Page>
   )

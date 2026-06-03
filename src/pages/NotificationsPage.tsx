@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AtSign, Heart, MessageCircle, UserPlus } from 'lucide-react'
+import { AtSign, Bell, Heart, MessageCircle, UserPlus } from 'lucide-react'
 import { avatar, resolveAvatar } from '@/data/feed'
 import { type Notification, notifications, type NotifType } from '@/data/notifications'
 import { cn } from '@/lib/cn'
@@ -9,6 +9,7 @@ import { type AppNotification, useMarkNotificationsRead, useNotifications } from
 import { useMyFollowing, useToggleFollow } from '@/lib/profile'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
+import { EmptyState } from '@/components/EmptyState'
 
 const ICON: Record<NotifType, typeof Heart> = {
   like: Heart,
@@ -125,9 +126,12 @@ function RealNotifications() {
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-white/70" />
         </div>
       ) : notifs.length === 0 ? (
-        <p className="py-20 text-center text-sm text-white/55">
-          No notifications yet — follows, likes, and comments will show up here.
-        </p>
+        <EmptyState
+          icon={Bell}
+          title="No notifications yet"
+          description="Follows, likes, and comments will show up here."
+          action={{ label: 'Find people to follow', to: '/explore' }}
+        />
       ) : (
         <ul className="glass edge-light divide-y divide-white/[0.05] overflow-hidden rounded-3xl">
           {notifs.map((n) => (
@@ -249,7 +253,9 @@ function MockNotifications() {
 
       {today.length > 0 && <MockSection title="Today" items={today} />}
       {week.length > 0 && <MockSection title="This week" items={week} />}
-      {items.length === 0 && <p className="py-20 text-center text-sm text-white/55">Nothing here yet.</p>}
+      {items.length === 0 && (
+        <EmptyState icon={Bell} title="You're all caught up" description="New activity will show up here." />
+      )}
     </Page>
   )
 }

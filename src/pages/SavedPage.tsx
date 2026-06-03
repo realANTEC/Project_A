@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { usePostModal } from '@/lib/post-modal'
 import { Page } from '@/components/Page'
 import { PhotoTile } from '@/components/PhotoTile'
+import { EmptyState } from '@/components/EmptyState'
 
 export function SavedPage() {
   const { posts, saved } = useFeed()
@@ -39,15 +40,12 @@ export function SavedPage() {
           ))}
         </div>
       ) : (
-        <div className="grid place-items-center gap-3 py-24 text-center">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-white/[0.05] ring-1 ring-white/10">
-            <Bookmark className="h-7 w-7 text-white/55" />
-          </span>
-          <p className="text-sm text-white/55">Bookmark posts and they&rsquo;ll appear here.</p>
-          <p className="flex items-center gap-1 text-xs text-white/55">
-            Tap the <Bookmark className="h-3 w-3" /> on any post to save it.
-          </p>
-        </div>
+        <EmptyState
+          icon={Bookmark}
+          title="No saved posts yet"
+          description="Tap the bookmark on any post to save it for later."
+          action={{ label: 'Explore posts', to: '/explore' }}
+        />
       )}
     </Page>
   )
