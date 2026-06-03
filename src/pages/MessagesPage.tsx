@@ -16,6 +16,7 @@ import {
   useTyping,
 } from '@/lib/messages'
 import { useOnline } from '@/lib/presence'
+import { useCall } from '@/lib/calls'
 import { cn } from '@/lib/cn'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
@@ -52,6 +53,8 @@ function Thread({
   const send = useSendMessage()
   const { theyTyping, notifyTyping } = useTyping(conversation.id)
   const { mutate: markRead } = useMarkRead()
+  const { startCall } = useCall()
+  const navigate = useNavigate()
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -83,7 +86,12 @@ function Thread({
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <Avatar src={resolveAvatar(conversation.user)} alt={conversation.user.name} size={40} online={online} />
+        <Avatar
+          src={resolveAvatar(conversation.user)}
+          alt={conversation.user.name}
+          size={40}
+          online={online}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
             <span className="truncate text-sm font-semibold text-white">{conversation.user.name}</span>
@@ -93,16 +101,30 @@ function Thread({
             {theyTyping ? 'typing…' : online ? 'Active now' : `@${conversation.user.handle}`}
           </span>
         </div>
-        {[Phone, Video, Info].map((Icon, i) => (
-          <button
-            key={i}
-            type="button"
-            aria-label="Call options"
-            className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
-          >
-            <Icon className="h-[18px] w-[18px]" />
-          </button>
-        ))}
+        <button
+          type="button"
+          onClick={() => startCall(conversation.otherId, conversation.user, 'audio')}
+          aria-label="Voice call"
+          className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Phone className="h-[18px] w-[18px]" />
+        </button>
+        <button
+          type="button"
+          onClick={() => startCall(conversation.otherId, conversation.user, 'video')}
+          aria-label="Video call"
+          className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Video className="h-[18px] w-[18px]" />
+        </button>
+        <button
+          type="button"
+          onClick={() => navigate(`/u/${conversation.user.handle}`)}
+          aria-label="View profile"
+          className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Info className="h-[18px] w-[18px]" />
+        </button>
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
@@ -394,7 +416,12 @@ function MockMessages() {
                     <span className="truncate text-sm font-semibold text-white">{c.user.name}</span>
                     <span className="shrink-0 text-[11px] text-white/55">{c.time}</span>
                   </div>
-                  <p className={cn('truncate text-xs', c.unread ? 'font-semibold text-white/85' : 'text-white/55')}>
+                  <p
+                    className={cn(
+                      'truncate text-xs',
+                      c.unread ? 'font-semibold text-white/85' : 'text-white/55',
+                    )}
+                  >
                     {c.preview}
                   </p>
                 </div>
@@ -419,7 +446,12 @@ function MockMessages() {
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <Avatar src={avatar(active.user.avatarId)} alt={active.user.name} size={40} online={active.online} />
+            <Avatar
+              src={avatar(active.user.avatarId)}
+              alt={active.user.name}
+              size={40}
+              online={active.online}
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <span className="truncate text-sm font-semibold text-white">{active.user.name}</span>
@@ -429,16 +461,7 @@ function MockMessages() {
                 {active.online ? 'Active now' : `@${active.user.handle}`}
               </span>
             </div>
-            {[Phone, Video, Info].map((Icon, i) => (
-              <button
-                key={i}
-                type="button"
-                aria-label="Call options"
-                className="grid h-9 w-9 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
-              >
-                <Icon className="h-[18px] w-[18px]" />
-              </button>
-            ))}
+            {/* Calls require the real Supabase signaling backend — omitted in local/mock mode. */}
           </div>
 
           <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
