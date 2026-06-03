@@ -44,7 +44,11 @@ export type Post = {
   source?: 'db' | 'seed'
   /** The author's real profile id (DB posts only) — recipient for like/comment notifications. */
   authorId?: string
+  /** Explore-mosaic category for the filter chips (curated posts only). */
+  category?: ExploreCategory
 }
+
+export type ExploreCategory = 'Nature' | 'Architecture' | 'Portraits' | 'Minimal' | 'Color'
 
 export type Story = {
   user: User
@@ -290,6 +294,29 @@ const EXPLORE_IMG: [string, Aspect][] = [
   ['1477649826131-b6c2d84043c9', 'square'],
 ]
 
+// Best-effort curated category per explore image (so the Explore filter chips work).
+// Approximate — these are demo stock photos, not content-classified.
+const EXPLORE_CATEGORIES: ExploreCategory[] = [
+  'Architecture',
+  'Portraits',
+  'Color',
+  'Nature',
+  'Minimal',
+  'Nature',
+  'Minimal',
+  'Nature',
+  'Architecture',
+  'Portraits',
+  'Color',
+  'Nature',
+  'Portraits',
+  'Nature',
+  'Minimal',
+  'Nature',
+  'Portraits',
+  'Minimal',
+]
+
 function buildPost(id: string, aspect: Aspect, i: number): Post {
   const author = POOL[i % POOL.length]
   return {
@@ -299,6 +326,7 @@ function buildPost(id: string, aspect: Aspect, i: number): Post {
     aspect,
     tint: TINTS[i % TINTS.length],
     caption: CAPTIONS[i % CAPTIONS.length],
+    category: EXPLORE_CATEGORIES[i % EXPLORE_CATEGORIES.length],
     tags: [],
     likes: 1200 + ((i * 8867) % 60000),
     commentsCount: 12 + ((i * 53) % 460),

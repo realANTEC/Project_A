@@ -37,4 +37,18 @@ test.describe('newly-wired affordances', () => {
     await page.getByRole('button', { name: 'Suggest a caption' }).click()
     await expect(caption).not.toHaveValue('')
   })
+
+  test('Explore category chips filter the mosaic', async ({ page }) => {
+    await page.goto('/explore')
+    const tiles = page.getByRole('button', { name: /^Post by/ })
+    await expect(tiles.first()).toBeVisible() // wait for the lazy mosaic to render
+    const all = await tiles.count()
+    expect(all).toBeGreaterThan(5)
+
+    await page.getByRole('button', { name: 'Architecture', exact: true }).click()
+    await expect.poll(() => tiles.count()).toBeLessThan(all)
+
+    await page.getByRole('button', { name: 'For you', exact: true }).click()
+    await expect.poll(() => tiles.count()).toBe(all)
+  })
 })

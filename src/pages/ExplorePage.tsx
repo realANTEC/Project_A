@@ -67,6 +67,11 @@ export function ExplorePage() {
     () => (isSupabaseConfigured ? [...dbPosts, ...explorePosts] : explorePosts),
     [dbPosts],
   )
+  // "For you" (index 0) shows everything; a category shows its curated posts.
+  const visible = useMemo(
+    () => (filter === 0 ? posts : posts.filter((p) => p.category === FILTERS[filter])),
+    [posts, filter],
+  )
 
   return (
     <Page>
@@ -94,7 +99,7 @@ export function ExplorePage() {
 
       {/* Masonry mosaic */}
       <div className="columns-2 gap-3 sm:columns-3">
-        {posts.map((post, i) => (
+        {visible.map((post, i) => (
           <ExploreTile key={post.id} post={post} index={i} onOpen={(el) => openPost(post, el)} />
         ))}
       </div>
