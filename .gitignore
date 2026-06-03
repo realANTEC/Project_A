@@ -25,3 +25,9 @@ dist-ssr
 
 # Local Claude Code settings (launch.json is shared; *.local.json is per-machine)
 .claude/settings.local.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

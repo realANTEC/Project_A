@@ -11,6 +11,8 @@ export default defineConfig({
     },
   },
   test: {
+    // Only unit tests under src/ — Playwright owns the e2e/ specs.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
     environment: 'happy-dom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],

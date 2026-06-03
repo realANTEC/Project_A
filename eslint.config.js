@@ -7,7 +7,8 @@ import tseslint from 'typescript-eslint'
 import prettier from 'eslint-config-prettier'
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules'] },
+  // e2e specs are Playwright-typed (own tsconfig-free runtime); lint scopes to app + unit tests.
+  { ignores: ['dist', 'node_modules', 'e2e', 'playwright-report', 'test-results'] },
   {
     files: ['**/*.{ts,tsx}'],
     extends: [js.configs.recommended, ...tseslint.configs.recommended, prettier],
