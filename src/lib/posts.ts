@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { downscaleImage } from './image'
 import { relativeTime } from './format'
 import { explorePosts, posts as seedPosts, type Aspect, type Post, type User } from '@/data/feed'
 
@@ -109,7 +110,9 @@ export function useCreatePost() {
       if (!supabase || !session) throw new Error('Not signed in')
       let imageUrl = input.image
       if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:')) {
-        const blob = await (await fetch(imageUrl)).blob()
+        const original = await (await fetch(imageUrl)).blob()
+        // Downscale large camera photos before upload (faster upload + feed load).
+        const blob = await downscaleImage(original, { maxDim: 1600 })
         const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
         const path = `${session.user.id}/${Date.now()}.${ext}`
         const { error: upErr } = await supabase.storage

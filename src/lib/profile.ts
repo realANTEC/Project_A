@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from './supabase'
 import { useAuth } from './auth'
+import { downscaleImage } from './image'
 import { authorToUser, type DbAuthor, type DbPostRow, POST_SELECT, rowToPost } from './posts'
 import { notify } from './notifications'
 import type { Post, User } from '@/data/feed'
@@ -57,7 +58,10 @@ export function useProfileSearch(query: string) {
   const { session } = useAuth()
   const myId = session?.user.id
   // Strip characters that would break PostgREST's or()/ilike filter syntax.
-  const safe = query.trim().replace(/[%,()*\\]/g, ' ').trim()
+  const safe = query
+    .trim()
+    .replace(/[%,()*\\]/g, ' ')
+    .trim()
   return useQuery({
     queryKey: ['profile-search', safe],
     enabled: !!supabase && safe.length >= 1,
@@ -218,7 +222,9 @@ export function useUpdateProfile() {
       }
       // Upload a newly-picked avatar to the 'media' bucket and point avatar_url at it.
       if (edits.avatarDataUrl?.startsWith('data:')) {
-        const blob = await (await fetch(edits.avatarDataUrl)).blob()
+        const original = await (await fetch(edits.avatarDataUrl)).blob()
+        // Avatars display small — cap them tight to keep uploads + loads light.
+        const blob = await downscaleImage(original, { maxDim: 512 })
         const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
         const path = `${session.user.id}/avatar-${Date.now()}.${ext}`
         const { error: upErr } = await supabase.storage
