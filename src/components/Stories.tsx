@@ -1,15 +1,30 @@
-import { motion } from 'motion/react'
+import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { AnimatePresence, motion } from 'motion/react'
 import { Plus } from 'lucide-react'
-import { avatar, currentUser, stories } from '@/data/feed'
+import { avatar, currentUser, posts, stories } from '@/data/feed'
+import { useCompose } from '@/lib/compose'
+import { buildStoryReels } from '@/lib/stories'
 import { Avatar } from './Avatar'
+import { StoryViewer } from './StoryViewer'
 
 /** Horizontally scrolling story rail with conic rings and a "Your story" add. */
 export function Stories() {
+  const { openCompose } = useCompose()
+  const [openAt, setOpenAt] = useState<number | null>(null)
+  // Each person's own posts become their story frames (placeholder when they have none).
+  const reels = useMemo(() => buildStoryReels(stories, posts), [])
+
   return (
     <section aria-label="Stories" className="glass edge-light rounded-4xl">
       <div className="no-scrollbar mask-fade-r flex gap-4 overflow-x-auto px-4 py-4">
-        {/* Your story */}
-        <button type="button" className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5">
+        {/* Your story → opens the create flow */}
+        <button
+          type="button"
+          onClick={openCompose}
+          aria-label="Add to your story"
+          className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5"
+        >
           <span className="relative">
             <Avatar
               src={avatar(currentUser.avatarId)}
@@ -29,6 +44,8 @@ export function Stories() {
           <motion.button
             type="button"
             key={s.user.handle}
+            onClick={() => setOpenAt(i)}
+            aria-label={`View ${s.user.name}'s story`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.04 * i, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
@@ -53,6 +70,16 @@ export function Stories() {
           </motion.button>
         ))}
       </div>
+
+      {/* Portaled to <body> so the fixed overlay escapes this glass (backdrop-filtered) section. */}
+      {createPortal(
+        <AnimatePresence>
+          {openAt !== null && (
+            <StoryViewer key={openAt} reels={reels} startIndex={openAt} onClose={() => setOpenAt(null)} />
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </section>
   )
 }
