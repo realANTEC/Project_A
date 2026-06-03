@@ -13,6 +13,7 @@ import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMenu } from './PostMenu'
+import { EmojiPicker } from './EmojiPicker'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
 
@@ -103,7 +104,46 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<{ key: string; handle: string } | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [emojiOpen, setEmojiOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const emojiWrapRef = useRef<HTMLDivElement>(null)
+
+  // Insert an emoji at the caret (or the end), then restore focus + caret.
+  function insertEmoji(emoji: string) {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? draft.length
+    const end = el?.selectionEnd ?? draft.length
+    setDraft((d) => d.slice(0, start) + emoji + d.slice(end))
+    requestAnimationFrame(() => {
+      const node = inputRef.current
+      if (node) {
+        const pos = start + emoji.length
+        node.focus()
+        node.setSelectionRange(pos, pos)
+      }
+    })
+  }
+
+  // Close the emoji picker on an outside click or Escape. The Escape handler runs in
+  // the capture phase and stops propagation so it closes the picker, not the lightbox.
+  useEffect(() => {
+    if (!emojiOpen) return
+    const onDown = (e: MouseEvent) => {
+      if (emojiWrapRef.current && !emojiWrapRef.current.contains(e.target as Node)) setEmojiOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopImmediatePropagation()
+        setEmojiOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [emojiOpen])
 
   function startReply(rootKey: string, handle: string) {
     setReplyTo({ key: rootKey, handle })
@@ -301,7 +341,22 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
             }}
             className="flex items-center gap-3 px-5 py-3"
           >
-            <Smile className="h-5 w-5 shrink-0 text-white/55" />
+            <div ref={emojiWrapRef} className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => setEmojiOpen((o) => !o)}
+                aria-label="Add emoji"
+                aria-expanded={emojiOpen}
+                className="grid place-items-center rounded-full text-white/55 transition hover:text-white"
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+              {emojiOpen && (
+                <div className="absolute bottom-full left-0 z-20 mb-2">
+                  <EmojiPicker onPick={insertEmoji} />
+                </div>
+              )}
+            </div>
             <input
               ref={inputRef}
               value={draft}
