@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/media-has-caption */ // live call media has no captions track
-import { type ReactNode, useEffect, useRef } from 'react'
+import { type ReactNode, useCallback } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff } from 'lucide-react'
 import { resolveAvatar } from '@/data/feed'
@@ -8,13 +8,27 @@ import { useCall } from '@/lib/calls'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
 
-/** Binds a MediaStream to a <video> element's srcObject. */
-function useVideoStream(stream: MediaStream | null) {
-  const ref = useRef<HTMLVideoElement>(null)
-  useEffect(() => {
-    if (ref.current) ref.current.srcObject = stream
-  }, [stream])
-  return ref
+/**
+ * A *callback ref* that binds a MediaStream to its media element and starts playback.
+ * Using a callback ref (not a useRef + effect) is the fix for a blank preview: the
+ * caller acquires its camera while still on the "Calling…" screen, so its stream is
+ * already set before the small preview element mounts — an effect keyed on the stream
+ * would never re-run for that late mount. A callback ref binds whenever the element
+ * mounts OR the stream changes, covering both the caller and the answerer.
+ * The explicit play() matters on mobile, where autoPlay of live media is unreliable.
+ */
+function useMediaStream<T extends HTMLMediaElement>(stream: MediaStream | null) {
+  return useCallback(
+    (el: T | null) => {
+      if (!el) return
+      el.srcObject = stream
+      if (stream) {
+        const p = el.play?.()
+        if (p && typeof p.catch === 'function') p.catch(() => {})
+      }
+    },
+    [stream],
+  )
 }
 
 function RoundButton({
@@ -52,19 +66,30 @@ export function CallOverlay() {
     remoteStream,
     muted,
     cameraOff,
+    connectionState,
     acceptCall,
     declineCall,
     hangup,
     toggleMute,
     toggleCamera,
   } = useCall()
-  const remoteRef = useVideoStream(remoteStream)
-  const localRef = useVideoStream(localStream)
+  const remoteVideoRef = useMediaStream<HTMLVideoElement>(remoteStream)
+  const remoteAudioRef = useMediaStream<HTMLAudioElement>(remoteStream)
+  const localRef = useMediaStream<HTMLVideoElement>(localStream)
   // Move focus into the call surface and trap Tab while it's up — so an incoming
   // ring lands on Accept/Decline and keyboard users can't wander behind it.
   const dialogRef = useFocusTrap<HTMLDivElement>(status !== 'idle' && !!call)
 
   const inCall = status === 'connected'
+  // Plain-language WebRTC connection state for the in-call status line.
+  const connLabel =
+    connectionState === 'connected'
+      ? 'Connected'
+      : connectionState === 'failed'
+        ? 'Connection failed'
+        : connectionState === 'disconnected'
+          ? 'Reconnecting…'
+          : 'Connecting…'
 
   return (
     <AnimatePresence>
@@ -82,26 +107,28 @@ export function CallOverlay() {
         >
           {inCall ? (
             <div className="bg-canvas relative h-full w-full max-w-[1100px] overflow-hidden rounded-4xl">
-              {/* remote media (a hidden <video> still plays audio for audio calls) */}
-              <video
-                ref={remoteRef}
-                autoPlay
-                playsInline
-                className={cn(
-                  'absolute inset-0 h-full w-full bg-black object-cover',
-                  call.type === 'audio' && 'hidden',
-                )}
-              />
-              {call.type === 'audio' && (
-                <div className="absolute inset-0 grid place-items-center gap-4">
-                  <Avatar
-                    src={resolveAvatar(call.peerUser)}
-                    alt={call.peerUser.name}
-                    size={120}
-                    ring="aurora"
-                  />
-                  <p className="text-lg font-semibold text-white">{call.peerUser.name}</p>
-                </div>
+              {/* remote media: a real <video> for video calls; a dedicated <audio>
+                  sink for audio calls (more reliable than a hidden video on mobile) */}
+              {call.type === 'video' ? (
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  className="absolute inset-0 h-full w-full bg-black object-cover"
+                />
+              ) : (
+                <>
+                  <audio ref={remoteAudioRef} autoPlay playsInline />
+                  <div className="absolute inset-0 grid place-items-center gap-4">
+                    <Avatar
+                      src={resolveAvatar(call.peerUser)}
+                      alt={call.peerUser.name}
+                      size={120}
+                      ring="aurora"
+                    />
+                    <p className="text-lg font-semibold text-white">{call.peerUser.name}</p>
+                  </div>
+                </>
               )}
 
               {/* local preview */}
@@ -117,6 +144,14 @@ export function CallOverlay() {
 
               <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent p-5 text-center">
                 <p className="text-base font-semibold text-white drop-shadow">{call.peerUser.name}</p>
+                <p
+                  className={cn(
+                    'mt-0.5 text-xs drop-shadow',
+                    connectionState === 'failed' ? 'text-rose-300' : 'text-white/75',
+                  )}
+                >
+                  {connLabel}
+                </p>
               </div>
 
               {/* controls */}

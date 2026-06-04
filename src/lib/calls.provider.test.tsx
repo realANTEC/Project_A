@@ -153,6 +153,7 @@ describe('CallProvider — call lifecycle timers', () => {
     // Grace window: a transient disconnect must NOT tear the call down immediately
     // (the pre-fix behavior ended it the instant the state hit 'disconnected').
     expect(api!.status).not.toBe('idle')
+    expect(api!.connectionState).toBe('disconnected') // surfaced for the in-call status line
     await act(async () => {
       vi.advanceTimersByTime(8_000)
     })

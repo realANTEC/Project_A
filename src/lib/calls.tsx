@@ -70,6 +70,8 @@ export type CallCtx = {
   remoteStream: MediaStream | null
   muted: boolean
   cameraOff: boolean
+  /** RTCPeerConnection.connectionState — surfaced for the in-call status line. */
+  connectionState: string
   startCall: (peerId: string, peerUser: User, type: CallType) => void
   acceptCall: () => void
   declineCall: () => void
@@ -112,6 +114,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
   const [muted, setMuted] = useState(false)
   const [cameraOff, setCameraOff] = useState(false)
+  const [connectionState, setConnectionState] = useState<string>('new')
 
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
@@ -192,6 +195,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setRemoteStream(null)
     setMuted(false)
     setCameraOff(false)
+    setConnectionState('new')
     setCall(null)
     setStatus('idle')
   }, [clearRingTimer, clearDisconnectTimer])
@@ -212,6 +216,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       pc.ontrack = (e) => setRemoteStream(e.streams[0] ?? null)
       pc.onconnectionstatechange = () => {
         const st = pc.connectionState
+        setConnectionState(st)
         if (st === 'failed' || st === 'closed') {
           teardown()
         } else if (st === 'disconnected') {
@@ -292,10 +297,13 @@ export function CallProvider({ children }: { children: ReactNode }) {
     const active = callRef.current
     const offer = offerRef.current
     if (!active || !offer) return
-    setStatus('connected')
     ;(async () => {
       try {
         const stream = await getMedia(active.type)
+        // Switch to the in-call view only AFTER local media is ready, so the local
+        // self-preview mounts with its stream already present (otherwise it stays blank
+        // on the answering device — the preview mounted before getUserMedia resolved).
+        setStatus('connected')
         const pc = createPeer(active.type)
         stream.getTracks().forEach((t) => pc.addTrack(t, stream))
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
@@ -401,6 +409,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     remoteStream,
     muted,
     cameraOff,
+    connectionState,
     startCall,
     acceptCall,
     declineCall,
