@@ -83,7 +83,7 @@ export function NavRail() {
   })
 
   return (
-    <nav className="flex h-full flex-col gap-2 py-6 pr-2">
+    <nav className="flex h-full flex-col gap-2 px-2 py-6">
       <Link to="/" className="w-fit rounded-xl px-3.5 pb-4">
         <Brand />
       </Link>
