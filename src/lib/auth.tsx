@@ -41,12 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase) return
     let active = true
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return
-      setSession(data.session)
-      if (data.session) void loadProfile(data.session.user.id)
-      setReady(true)
-    })
+    void supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!active) return
+        setSession(data.session)
+        if (data.session) void loadProfile(data.session.user.id)
+      })
+      .catch(() => {
+        // Swallow — fall through to `ready` in finally so a failed/rejected
+        // session check can't leave the app stuck on the splash screen.
+      })
+      .finally(() => {
+        if (active) setReady(true)
+      })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next)
       if (next) void loadProfile(next.user.id)

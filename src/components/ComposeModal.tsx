@@ -61,38 +61,42 @@ function ComposeBody({ onClose }: { onClose: () => void }) {
   }
 
   function share() {
-    if (!picked) return
+    if (!picked || createPost.isPending) return
     const text = caption.trim() || 'Untitled ✦'
     const place = location.trim() || undefined
 
     if (isSupabaseConfigured) {
-      createPost.mutate({
-        image: picked.image,
-        aspect: picked.aspect,
-        tint: picked.tint,
-        caption: text,
-        location: place,
-      })
-    } else {
-      const post: Post = {
-        id: `new-${Date.now()}`,
-        author: currentUser,
-        image: picked.image,
-        aspect: picked.aspect,
-        tint: picked.tint,
-        location: place,
-        caption: text,
-        tags: [],
-        likes: 0,
-        commentsCount: 0,
-        time: 'now',
-        likedByYou: false,
-        saved: false,
-        topComments: [],
-        likedBy: [],
-      }
-      addPost(post)
+      // Keep the composer open until the upload + insert resolve, so a failure
+      // surfaces here instead of the optimistic post silently vanishing from the feed.
+      createPost.mutate(
+        { image: picked.image, aspect: picked.aspect, tint: picked.tint, caption: text, location: place },
+        {
+          onSuccess: () => {
+            onClose()
+            navigate('/')
+          },
+        },
+      )
+      return
     }
+    const post: Post = {
+      id: `new-${Date.now()}`,
+      author: currentUser,
+      image: picked.image,
+      aspect: picked.aspect,
+      tint: picked.tint,
+      location: place,
+      caption: text,
+      tags: [],
+      likes: 0,
+      commentsCount: 0,
+      time: 'now',
+      likedByYou: false,
+      saved: false,
+      topComments: [],
+      likedBy: [],
+    }
+    addPost(post)
     onClose()
     navigate('/')
   }
@@ -118,9 +122,10 @@ function ComposeBody({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             onClick={share}
-            className="rounded-full px-2 py-1 text-sm font-semibold text-lilac transition hover:text-white"
+            disabled={createPost.isPending}
+            className="rounded-full px-2 py-1 text-sm font-semibold text-lilac transition hover:text-white disabled:opacity-60"
           >
-            Share
+            {createPost.isPending ? 'Sharing…' : 'Share'}
           </button>
         ) : (
           <span className="w-16" />
@@ -210,12 +215,19 @@ function ComposeBody({ onClose }: { onClose: () => void }) {
               />
             </label>
 
+            {createPost.isError && (
+              <p className="text-xs text-pink" role="alert">
+                Couldn’t share your post — please try again.
+              </p>
+            )}
+
             <button
               type="button"
               onClick={share}
-              className="bg-aurora animate-gradient mt-auto w-full rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-[var(--shadow-glow-violet)] transition hover:scale-[1.02] active:scale-95"
+              disabled={createPost.isPending}
+              className="bg-aurora animate-gradient mt-auto w-full rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-[var(--shadow-glow-violet)] transition hover:scale-[1.02] active:scale-95 disabled:opacity-70 disabled:hover:scale-100"
             >
-              Share post
+              {createPost.isPending ? 'Sharing…' : 'Share post'}
             </button>
           </div>
         </div>

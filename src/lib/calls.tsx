@@ -86,6 +86,15 @@ export function useCall(): CallCtx {
   return ctx
 }
 
+/** Give up on an unanswered outgoing call after this long (peer offline / ignoring). */
+const RING_TIMEOUT_MS = 35_000
+/**
+ * A `disconnected` ICE state is frequently transient (a brief network blip) and
+ * recovers on its own. Wait this long for recovery before ending the call — only
+ * `failed`/`closed` tear it down immediately.
+ */
+const DISCONNECT_GRACE_MS = 8_000
+
 /**
  * Real 1:1 WebRTC audio/video calling. Signaling rides Supabase Realtime broadcast:
  * each user listens on `calls:<theirId>` and sends to `calls:<peerId>`. Mounted once
@@ -113,6 +122,8 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const offerRef = useRef<RTCSessionDescriptionInit | null>(null)
   const callRef = useRef<ActiveCall | null>(null)
   const statusRef = useRef<CallStatus>(status)
+  const ringTimerRef = useRef<number | null>(null)
+  const disconnectTimerRef = useRef<number | null>(null)
   useEffect(() => {
     callRef.current = call
   }, [call])
@@ -149,7 +160,23 @@ export function CallProvider({ children }: { children: ReactNode }) {
     [myId],
   )
 
+  const clearRingTimer = useCallback(() => {
+    if (ringTimerRef.current !== null) {
+      clearTimeout(ringTimerRef.current)
+      ringTimerRef.current = null
+    }
+  }, [])
+
+  const clearDisconnectTimer = useCallback(() => {
+    if (disconnectTimerRef.current !== null) {
+      clearTimeout(disconnectTimerRef.current)
+      disconnectTimerRef.current = null
+    }
+  }, [])
+
   const teardown = useCallback(() => {
+    clearRingTimer()
+    clearDisconnectTimer()
     pcRef.current?.getSenders().forEach((s) => s.track?.stop())
     pcRef.current?.close()
     pcRef.current = null
@@ -167,7 +194,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
     setCameraOff(false)
     setCall(null)
     setStatus('idle')
-  }, [])
+  }, [clearRingTimer, clearDisconnectTimer])
 
   const flushIce = useCallback(() => {
     const pc = pcRef.current
@@ -184,13 +211,27 @@ export function CallProvider({ children }: { children: ReactNode }) {
       }
       pc.ontrack = (e) => setRemoteStream(e.streams[0] ?? null)
       pc.onconnectionstatechange = () => {
-        if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) teardown()
+        const st = pc.connectionState
+        if (st === 'failed' || st === 'closed') {
+          teardown()
+        } else if (st === 'disconnected') {
+          // Transient drop — give ICE a grace window to recover before ending.
+          if (disconnectTimerRef.current === null) {
+            disconnectTimerRef.current = window.setTimeout(() => {
+              disconnectTimerRef.current = null
+              const cs = pcRef.current?.connectionState
+              if (cs === 'disconnected' || cs === 'failed') teardown()
+            }, DISCONNECT_GRACE_MS)
+          }
+        } else if (st === 'connected') {
+          clearDisconnectTimer() // recovered — cancel a pending teardown
+        }
       }
       pcRef.current = pc
       void type
       return pc
     },
-    [send, teardown],
+    [send, teardown, clearDisconnectTimer],
   )
 
   const getMedia = useCallback(async (type: CallType) => {
@@ -220,6 +261,16 @@ export function CallProvider({ children }: { children: ReactNode }) {
       setCall({ callId, peerId, peerUser, type, isCaller: true })
       setStatus('outgoing')
       openSendChannel(peerId)
+      // Give up if the callee never picks up (offline / ignoring the ring).
+      clearRingTimer()
+      ringTimerRef.current = window.setTimeout(() => {
+        ringTimerRef.current = null
+        if (statusRef.current === 'outgoing') {
+          send({ kind: 'cancel', callId })
+          toast('No answer')
+          teardown()
+        }
+      }, RING_TIMEOUT_MS)
       ;(async () => {
         try {
           const stream = await getMedia(type)
@@ -234,7 +285,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
         }
       })()
     },
-    [myId, openSendChannel, getMedia, createPeer, send, selfUser, teardown, toast],
+    [myId, openSendChannel, getMedia, createPeer, send, selfUser, teardown, toast, clearRingTimer],
   )
 
   const acceptCall = useCallback(() => {
@@ -325,6 +376,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
           void (async () => {
             await pcRef.current?.setRemoteDescription(new RTCSessionDescription(sdp))
             flushIce()
+            clearRingTimer() // answered — stop the no-answer timeout
             setStatus('connected')
           })()
         } else if (sig.kind === 'ice' && sig.candidate) {
@@ -340,7 +392,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       void client.removeChannel(channel)
       teardown() // end any active call when the session ends or the provider unmounts
     }
-  }, [myId, openSendChannel, flushIce, teardown])
+  }, [myId, openSendChannel, flushIce, teardown, clearRingTimer])
 
   const value: CallCtx = {
     status,

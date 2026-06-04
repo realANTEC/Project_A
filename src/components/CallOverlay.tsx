@@ -5,6 +5,7 @@ import { Mic, MicOff, Phone, PhoneOff, Video, VideoOff } from 'lucide-react'
 import { resolveAvatar } from '@/data/feed'
 import { cn } from '@/lib/cn'
 import { useCall } from '@/lib/calls'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 import { Avatar } from './Avatar'
 
 /** Binds a MediaStream to a <video> element's srcObject. */
@@ -59,6 +60,9 @@ export function CallOverlay() {
   } = useCall()
   const remoteRef = useVideoStream(remoteStream)
   const localRef = useVideoStream(localStream)
+  // Move focus into the call surface and trap Tab while it's up — so an incoming
+  // ring lands on Accept/Decline and keyboard users can't wander behind it.
+  const dialogRef = useFocusTrap<HTMLDivElement>(status !== 'idle' && !!call)
 
   const inCall = status === 'connected'
 
@@ -66,6 +70,7 @@ export function CallOverlay() {
     <AnimatePresence>
       {status !== 'idle' && call && (
         <motion.div
+          ref={dialogRef}
           role="dialog"
           aria-modal="true"
           aria-label={inCall ? `Call with ${call.peerUser.name}` : `${status} call`}
