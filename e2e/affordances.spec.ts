@@ -51,4 +51,22 @@ test.describe('newly-wired affordances', () => {
     await page.getByRole('button', { name: 'For you', exact: true }).click()
     await expect.poll(() => tiles.count()).toBe(all)
   })
+
+  test('the lightbox comment button focuses the comment composer', async ({ page }) => {
+    await page.goto('/')
+    const media = page
+      .locator('article [role="button"]')
+      .filter({ has: page.locator('img') })
+      .first()
+    await expect(media).toBeVisible()
+    await media.click()
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+
+    const input = dialog.getByPlaceholder('Add a comment…')
+    await expect(input).not.toBeFocused()
+    await dialog.getByRole('button', { name: 'Comment', exact: true }).click()
+    await expect(input).toBeFocused()
+  })
 })

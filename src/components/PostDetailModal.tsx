@@ -168,6 +168,10 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
     if (result === 'copied') toast('Link copied')
     else if (result === 'unavailable') toast('Couldn’t share this post')
   }
+  // The comment icon focuses the composer (Instagram-style) — it sits just below.
+  function focusComposer() {
+    inputRef.current?.focus()
+  }
 
   return (
     <>
@@ -279,7 +283,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
                 />
               </motion.span>
             </PaneAction>
-            <PaneAction label="Comment">
+            <PaneAction label="Comment" onClick={focusComposer}>
               <MessageCircle className="h-[25px] w-[25px]" strokeWidth={1.75} />
             </PaneAction>
             <PaneAction label="Share" onClick={handleShare}>

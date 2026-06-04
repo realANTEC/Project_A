@@ -4,7 +4,10 @@ const MORPH_NAME = 'aurora-post-media'
 
 /** First post's clickable media in the feed (the element that opens the lightbox). */
 function firstPostMedia(page: Page) {
-  return page.locator('article [role="button"]').filter({ has: page.locator('img') }).first()
+  return page
+    .locator('article [role="button"]')
+    .filter({ has: page.locator('img') })
+    .first()
 }
 
 /** How many elements currently hold the shared morph view-transition-name. */
@@ -78,6 +81,11 @@ test.describe('post lightbox — modal-as-route + shared-element morph', () => {
   test('Escape closes the lightbox and returns to the feed', async ({ page }) => {
     await firstPostMedia(page).click()
     await expect(page.getByRole('dialog')).toBeVisible()
+    // The open commits inside the View-Transition callback, so the effects that
+    // attach the Escape handler run a beat after the dialog paints. Wait for the
+    // focus-trap to move focus INTO the dialog (its rAF fires after those effects)
+    // so the keypress can't race the open and get dropped.
+    await expect(page.locator('[role="dialog"] :focus')).toBeAttached()
 
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog')).toBeHidden()
