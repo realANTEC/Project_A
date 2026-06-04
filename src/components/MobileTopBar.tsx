@@ -16,7 +16,7 @@ export function MobileTopBar() {
   const showMsg = isSupabaseConfigured && unread > 0
 
   return (
-    <header className="glass edge-light sticky top-0 z-40 mb-4 flex items-center justify-between rounded-b-3xl px-4 py-3 lg:hidden">
+    <header className="glass edge-light sticky top-0 z-40 mb-4 flex h-16 items-center justify-between rounded-b-3xl px-4 lg:hidden">
       <Brand />
       <div className="flex items-center gap-1">
         <button

@@ -27,7 +27,7 @@ export function SavedPage() {
 
   return (
     <Page className="mx-auto max-w-[935px]">
-      <div className="sticky top-0 z-30 -mx-3 mb-5 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 pb-3 pt-4 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
+      <div className="sticky top-16 z-30 lg:top-0 -mx-3 mb-5 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 pb-3 pt-4 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
         <h1 className="font-display text-2xl font-bold tracking-tight text-white">Saved</h1>
         <p className="mt-0.5 text-sm text-white/55">
           {savedPosts.length} {savedPosts.length === 1 ? 'post' : 'posts'} you bookmarked

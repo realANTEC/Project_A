@@ -31,7 +31,7 @@ export function HomePage() {
     <Page className="flex justify-center gap-7">
       <main className="w-full max-w-[600px]">
         {/* Sticky frosted feed tabs */}
-        <div className="sticky top-0 z-30 -mx-3 mb-4 flex justify-center bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 py-3 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
+        <div className="sticky top-16 z-30 lg:top-0 -mx-3 mb-4 flex justify-center bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 py-3 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
           <FeedTabs value={tab} onChange={setTab} />
         </div>
 
