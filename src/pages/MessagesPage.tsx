@@ -260,9 +260,15 @@ function RealMessages() {
     }
   }, [isLoading, conversationId, composing, conversations, navigate])
 
+  // The thread card fills the viewport between the mobile chrome; its height must
+  // subtract ALL of that chrome or the page document-scrolls — which slides the
+  // thread header up under the sticky MobileTopBar and the composer under the
+  // fixed MobileTabBar. Chrome = top bar h-16 + mb-4 (5rem) + this card's mt-2
+  // (0.5rem) + the shell's pb-28 tab-bar clearance (7rem) = 12.5rem. On lg there
+  // is no mobile chrome (rails instead), so it subtracts only its own offset.
   return (
     <Page>
-      <div className="glass edge-light mt-2 flex h-[calc(100dvh-10.5rem)] overflow-hidden rounded-4xl lg:mt-6 lg:h-[calc(100dvh-4rem)]">
+      <div className="glass edge-light mt-2 flex h-[calc(100dvh-12.5rem)] overflow-hidden rounded-4xl lg:mt-6 lg:h-[calc(100dvh-4rem)]">
         {/* Conversation list */}
         <div
           className={cn(
@@ -384,7 +390,7 @@ function MockMessages() {
 
   return (
     <Page>
-      <div className="glass edge-light mt-2 flex h-[calc(100dvh-10.5rem)] overflow-hidden rounded-4xl lg:mt-6 lg:h-[calc(100dvh-4rem)]">
+      <div className="glass edge-light mt-2 flex h-[calc(100dvh-12.5rem)] overflow-hidden rounded-4xl lg:mt-6 lg:h-[calc(100dvh-4rem)]">
         {/* Conversation list */}
         <div
           className={cn(
