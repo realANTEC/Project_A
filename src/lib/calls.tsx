@@ -28,7 +28,21 @@ type TurnEnv = { turnUrl?: string; turnUser?: string; turnCred?: string }
  */
 export function buildIceServers(env: TurnEnv = {}): RTCIceServer[] {
   const servers: RTCIceServer[] = [{ urls: 'stun:stun.l.google.com:19302' }]
-  if (env.turnUrl) servers.push({ urls: env.turnUrl, username: env.turnUser, credential: env.turnCred })
+  if (env.turnUrl) {
+    // VITE_TURN_URL may be a comma-separated list of transports (udp / tcp / tls) that
+    // share one credential. Offering several relay routes — especially TCP/TLS on 443 —
+    // is what makes calls connect across restrictive networks that block UDP, where a
+    // single UDP relay leaves one side unreachable (calls connect one way but not the other).
+    const urls = env.turnUrl
+      .split(',')
+      .map((u) => u.trim())
+      .filter(Boolean)
+    servers.push({
+      urls: urls.length === 1 ? urls[0] : urls,
+      username: env.turnUser,
+      credential: env.turnCred,
+    })
+  }
   return servers
 }
 
@@ -263,7 +277,9 @@ export function CallProvider({ children }: { children: ReactNode }) {
     (peerId: string, peerUser: User, type: CallType) => {
       if (!myId || callRef.current) return
       const callId = crypto.randomUUID()
-      setCall({ callId, peerId, peerUser, type, isCaller: true })
+      const outgoing: ActiveCall = { callId, peerId, peerUser, type, isCaller: true }
+      callRef.current = outgoing // sync, so onicecandidate can emit candidates immediately
+      setCall(outgoing)
       setStatus('outgoing')
       openSendChannel(peerId)
       // Give up if the callee never picks up (offline / ignoring the ring).
@@ -368,13 +384,18 @@ export function CallProvider({ children }: { children: ReactNode }) {
           }
           offerRef.current = sig.sdp ?? null
           openSendChannel(sig.from)
-          setCall({
+          const incoming: ActiveCall = {
             callId: sig.callId,
             peerId: sig.from,
             peerUser: sig.fromUser ?? { name: 'Someone', handle: 'someone', avatarId: 0 },
             type: sig.callType ?? 'video',
             isCaller: false,
-          })
+          }
+          // Set the ref synchronously (not only via setCall's effect) so ICE candidates that
+          // arrive in the same tick as the offer pass the callId guard and get buffered
+          // rather than dropped — dropped early candidates can leave a call stuck "Connecting".
+          callRef.current = incoming
+          setCall(incoming)
           setStatus('incoming')
           return
         }

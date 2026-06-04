@@ -17,4 +17,23 @@ describe('buildIceServers', () => {
   it('omits TURN when no url is provided', () => {
     expect(buildIceServers({ turnUser: 'u', turnCred: 'p' })).toHaveLength(1)
   })
+
+  it('expands a comma-separated TURN url into multiple transports under one credential', () => {
+    const servers = buildIceServers({
+      turnUrl:
+        'turn:t.example.com:80, turn:t.example.com:443?transport=tcp , turns:t.example.com:443?transport=tcp',
+      turnUser: 'u',
+      turnCred: 'p',
+    })
+    expect(servers).toHaveLength(2)
+    expect(servers[1]).toEqual({
+      urls: [
+        'turn:t.example.com:80',
+        'turn:t.example.com:443?transport=tcp',
+        'turns:t.example.com:443?transport=tcp',
+      ],
+      username: 'u',
+      credential: 'p',
+    })
+  })
 })
