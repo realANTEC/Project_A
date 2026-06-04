@@ -294,27 +294,26 @@ const EXPLORE_IMG: [string, Aspect][] = [
   ['1477649826131-b6c2d84043c9', 'square'],
 ]
 
-// Best-effort curated category per explore image (so the Explore filter chips work).
-// Approximate — these are demo stock photos, not content-classified.
+// Category per explore image for the Explore filter chips — assigned by viewing each photo.
 const EXPLORE_CATEGORIES: ExploreCategory[] = [
-  'Architecture',
-  'Portraits',
-  'Color',
-  'Nature',
-  'Minimal',
-  'Nature',
-  'Minimal',
-  'Nature',
-  'Architecture',
-  'Portraits',
-  'Color',
-  'Nature',
-  'Portraits',
-  'Nature',
-  'Minimal',
-  'Nature',
-  'Portraits',
-  'Minimal',
+  'Architecture', // e0  concrete interior
+  'Portraits', // e1  woman, red light
+  'Nature', // e2  beach at dusk
+  'Minimal', // e3  white steps
+  'Architecture', // e4  white modern building
+  'Nature', // e5  open ocean
+  'Portraits', // e6  woman in a field
+  'Architecture', // e7  angular structure
+  'Minimal', // e8  long-exposure seascape
+  'Color', // e9  pink blooms on yellow
+  'Nature', // e10 teal horizon
+  'Minimal', // e11 light + shadow study
+  'Nature', // e12 single bloom
+  'Minimal', // e13 dark seascape
+  'Portraits', // e14 woman, golden hour
+  'Nature', // e15 pastel sea
+  'Color', // e16 moody florals
+  'Nature', // e17 tropical shore
 ]
 
 function buildPost(id: string, aspect: Aspect, i: number): Post {
