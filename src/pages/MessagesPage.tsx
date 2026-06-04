@@ -21,6 +21,7 @@ import { cn } from '@/lib/cn'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
+import { MessageBody } from '@/components/MessageBody'
 
 export function MessagesPage() {
   return isSupabaseConfigured ? <RealMessages /> : <MockMessages />
@@ -137,13 +138,13 @@ function Thread({
           <div key={m.id} className={cn('flex', m.fromMe ? 'justify-end' : 'justify-start')}>
             <div
               className={cn(
-                'max-w-[75%] px-4 py-2.5 text-sm leading-relaxed',
+                'max-w-[75%] break-words px-4 py-2.5 text-sm leading-relaxed',
                 m.fromMe
                   ? 'bg-aurora rounded-2xl rounded-br-md text-white'
                   : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
               )}
             >
-              {m.text}
+              <MessageBody text={m.text} fromMe={m.fromMe} />
             </div>
           </div>
         ))}
