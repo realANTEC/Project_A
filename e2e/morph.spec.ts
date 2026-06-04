@@ -97,4 +97,41 @@ test.describe('post lightbox — modal-as-route + shared-element morph', () => {
     await expect(page.getByRole('button', { name: 'Back' })).toBeVisible()
     await expect(page.getByRole('dialog')).toHaveCount(0)
   })
+
+  test('without the View Transitions API, the lightbox falls back to the motion layoutId path (Firefox)', async ({
+    page,
+  }) => {
+    // Disable startViewTransition before any app code runs, so `supportsViewTransitions`
+    // evaluates false and openPost takes the non-VT motion-layoutId branch (the Firefox path).
+    // Override the instance property too — it runs after the beforeEach VT-spy (which sets an
+    // own property) and so wins, leaving the app to genuinely see no View Transitions API.
+    await page.addInitScript(() => {
+      const undef = { configurable: true, value: undefined }
+      try {
+        Object.defineProperty(Document.prototype, 'startViewTransition', undef)
+      } catch {
+        /* ignore */
+      }
+      try {
+        Object.defineProperty(document, 'startViewTransition', undef)
+      } catch {
+        /* ignore */
+      }
+    })
+    await page.goto('/')
+    await expect(firstPostMedia(page)).toBeVisible()
+
+    await firstPostMedia(page).click()
+
+    // The modal-route still works without the View Transitions API…
+    await expect(page).toHaveURL(/\/p\/.+/)
+    await expect(page.getByRole('dialog')).toBeVisible()
+    // …no View Transition was invoked…
+    const vtCount = await page.evaluate(() => (window as unknown as { __vtCount: number }).__vtCount)
+    expect(vtCount).toBe(0)
+    // …and nothing carries the VT morph-name (the fallback animates via motion layoutId instead)…
+    expect(await morphHolderCount(page)).toBe(0)
+    // …with the feed still mounted underneath (background-location pattern holds).
+    expect(await page.locator('article').count()).toBeGreaterThan(0)
+  })
 })
