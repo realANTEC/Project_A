@@ -14,6 +14,7 @@ import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMenu } from './PostMenu'
 import { EmojiPicker } from './EmojiPicker'
+import { useSharePost } from './SharePostModal'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
 
@@ -101,6 +102,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
   const { liked, saved, likeCount: likes, toggleLike, toggleSave } = usePostInteractions(post)
   const { thread, addComment, likedComments, toggleCommentLike } = usePostComments(post)
   const { toast } = useToast()
+  const { canShare, openShare, shareModal } = useSharePost(post)
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<{ key: string; handle: string } | null>(null)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
@@ -286,7 +288,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
             <PaneAction label="Comment" onClick={focusComposer}>
               <MessageCircle className="h-[25px] w-[25px]" strokeWidth={1.75} />
             </PaneAction>
-            <PaneAction label="Share" onClick={handleShare}>
+            <PaneAction label="Share" onClick={canShare ? openShare : handleShare}>
               <Send className="h-[23px] w-[23px]" strokeWidth={1.75} />
             </PaneAction>
             <button
@@ -379,6 +381,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
           </form>
         </div>
       </div>
+      {shareModal}
     </>
   )
 }

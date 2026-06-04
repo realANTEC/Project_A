@@ -14,6 +14,7 @@ import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMedia } from './PostMedia'
 import { PostMenu } from './PostMenu'
+import { useSharePost } from './SharePostModal'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
 
@@ -60,6 +61,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
     toggleSave,
   } = usePostInteractions(post)
   const { toast } = useToast()
+  const { canShare, openShare, shareModal } = useSharePost(post)
 
   async function handleShare() {
     const result = await sharePost(post)
@@ -140,7 +142,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
           <span className="text-sm font-medium tabular-nums">{formatCount(commentCount)}</span>
         </ActionButton>
 
-        <ActionButton label="Share" onClick={handleShare}>
+        <ActionButton label="Share" onClick={canShare ? openShare : handleShare}>
           <Send className="h-[23px] w-[23px]" strokeWidth={1.75} />
         </ActionButton>
 
@@ -246,6 +248,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
         <span className="flex-1 text-sm text-white/55">Add a comment…</span>
         <span className="text-sm font-semibold text-lilac">Post</span>
       </button>
+      {shareModal}
     </motion.article>
   )
 }
