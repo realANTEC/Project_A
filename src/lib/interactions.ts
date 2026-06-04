@@ -448,7 +448,12 @@ export function usePostComments(post: Post): {
       addComment: (text, parentKey) => {
         const t = text.trim()
         if (t)
-          addCommentDb.mutate({ postId: post.id, body: t, parentId: parentKey ?? null, authorId: post.authorId })
+          addCommentDb.mutate({
+            postId: post.id,
+            body: t,
+            parentId: parentKey ?? null,
+            authorId: post.authorId,
+          })
       },
       likedComments: myCommentLikes.data ?? EMPTY_SET,
       toggleCommentLike: (commentId, liked) => {
@@ -458,11 +463,13 @@ export function usePostComments(post: Post): {
   }
 
   // Curated/local post: seed comments are roots; viewer comments nest by parentKey.
+  // These aren't real rows, so likes toggle locally (persisted in feed-store).
+  const isLiked = (key: string) => !!local.commentLikes[`${post.id}:${key}`]
   const node = (key: string, user: User, text: string, likes: number): ThreadComment => ({
     key,
     user,
     text,
-    likes,
+    likes: likes + (isLiked(key) ? 1 : 0),
     replies: [],
   })
   const roots: ThreadComment[] = [
@@ -487,11 +494,18 @@ export function usePostComments(post: Post): {
       index.set(key, reply)
     }
   }
+  const likedComments = new Set<string>()
+  const collectLiked = (list: ThreadComment[]) => {
+    for (const c of list) {
+      if (isLiked(c.key)) likedComments.add(c.key)
+      collectLiked(c.replies)
+    }
+  }
+  collectLiked(roots)
   return {
     thread: roots,
     addComment: (text, parentKey) => local.addComment(post.id, text, parentKey ?? null),
-    // Curated/local comments aren't real rows — likes stay decorative.
-    likedComments: EMPTY_SET,
-    toggleCommentLike: () => {},
+    likedComments,
+    toggleCommentLike: (commentId) => local.toggleCommentLike(post.id, commentId),
   }
 }

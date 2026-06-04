@@ -19,6 +19,9 @@ type FeedCtx = {
   /** Viewer-authored comments, keyed by post id. */
   comments: Record<string, StoredComment[]>
   addComment: (postId: string, text: string, parentKey?: string | null) => void
+  /** Locally-liked comments, keyed `${postId}:${commentKey}` (curated/local posts). */
+  commentLikes: Flags
+  toggleCommentLike: (postId: string, key: string) => void
 }
 
 const Ctx = createContext<FeedCtx | null>(null)
@@ -26,6 +29,7 @@ const Ctx = createContext<FeedCtx | null>(null)
 const LIKED_KEY = 'aurora:liked'
 const SAVED_KEY = 'aurora:saved'
 const COMMENTS_KEY = 'aurora:comments'
+const COMMENT_LIKES_KEY = 'aurora:comment-likes'
 
 function loadFlags(key: string, seed: () => Flags): Flags {
   try {
@@ -80,8 +84,11 @@ export function FeedProvider({ children }: { children: ReactNode }) {
     return {}
   })
 
+  const [commentLikes, setCommentLikes] = useState<Flags>(() => loadFlags(COMMENT_LIKES_KEY, () => ({})))
+
   useEffect(() => persist(LIKED_KEY, liked), [liked])
   useEffect(() => persist(SAVED_KEY, saved), [saved])
+  useEffect(() => persist(COMMENT_LIKES_KEY, commentLikes), [commentLikes])
   useEffect(() => {
     try {
       localStorage.setItem(COMMENTS_KEY, JSON.stringify(comments))
@@ -108,10 +115,33 @@ export function FeedProvider({ children }: { children: ReactNode }) {
     [],
   )
   const toggleSave = useCallback((id: string) => setSaved((prev) => ({ ...prev, [id]: !prev[id] })), [])
+  const toggleCommentLike = useCallback(
+    (postId: string, key: string) =>
+      setCommentLikes((prev) => {
+        const k = `${postId}:${key}`
+        const next = { ...prev }
+        if (next[k]) delete next[k]
+        else next[k] = true
+        return next
+      }),
+    [],
+  )
 
   return (
     <Ctx.Provider
-      value={{ posts, addPost, liked, saved, toggleLike, like, toggleSave, comments, addComment }}
+      value={{
+        posts,
+        addPost,
+        liked,
+        saved,
+        toggleLike,
+        like,
+        toggleSave,
+        comments,
+        addComment,
+        commentLikes,
+        toggleCommentLike,
+      }}
     >
       {children}
     </Ctx.Provider>

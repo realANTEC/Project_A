@@ -18,6 +18,7 @@ import { useStartConversation } from '@/lib/messages'
 import { usePostModal } from '@/lib/post-modal'
 import { useSearch } from '@/lib/search'
 import { useCompose } from '@/lib/compose'
+import { useToast } from '@/lib/toast'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
@@ -306,14 +307,24 @@ function RealProfile({ profile }: { profile: DbProfile }) {
 /** Curated / local-mode profile from mock data. */
 function MockProfile({ handle }: { handle: string }) {
   const profile = getProfile(handle)
+  const { toast } = useToast()
+  // Curated personas aren't real accounts, so Follow toggles locally (a visual
+  // response, not persisted) and Message explains rather than opening a dead thread.
+  const [following, setFollowing] = useState(false)
+  const isYou = profile.user.handle === currentUser.handle
   return (
     <ProfileView
       user={profile.user}
       bio={profile.bio}
       website={profile.website}
-      stats={profile.stats}
+      stats={{ ...profile.stats, followers: profile.stats.followers + (following ? 1 : 0) }}
       grid={profile.grid}
-      isYou={profile.user.handle === currentUser.handle}
+      isYou={isYou}
+      isFollowing={following}
+      onToggleFollow={() => setFollowing((f) => !f)}
+      onMessage={() =>
+        toast(`${profile.user.name} is a showcase profile — messaging works with real members`)
+      }
     />
   )
 }

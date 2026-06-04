@@ -69,4 +69,26 @@ test.describe('newly-wired affordances', () => {
     await dialog.getByRole('button', { name: 'Comment', exact: true }).click()
     await expect(input).toBeFocused()
   })
+
+  test('curated-persona profile: Follow toggles and Message explains', async ({ page }) => {
+    await page.goto('/u/maralin')
+    const follow = page.getByRole('button', { name: 'Follow', exact: true })
+    await expect(follow).toBeVisible()
+    await follow.click()
+    await expect(page.getByRole('button', { name: 'Following', exact: true })).toBeVisible()
+
+    await page.getByRole('button', { name: 'Message', exact: true }).click()
+    await expect(page.getByText(/showcase profile/i)).toBeVisible()
+  })
+
+  test('curated post: the comment like toggles locally', async ({ page }) => {
+    await page.goto('/p/p1') // p1 = first curated seed post
+    const heart = page.getByRole('button', { name: 'Like comment' }).first()
+    await expect(heart).toBeVisible()
+    await expect(heart).toHaveAttribute('aria-pressed', 'false')
+    await heart.click()
+    await expect(heart).toHaveAttribute('aria-pressed', 'true')
+    await heart.click()
+    await expect(heart).toHaveAttribute('aria-pressed', 'false')
+  })
 })
