@@ -77,7 +77,7 @@ function Thread({
   }
 
   return (
-    <div className="flex w-full flex-col md:flex-1">
+    <div className="flex w-full min-w-0 flex-col md:flex-1">
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3">
         <button
           type="button"
@@ -159,7 +159,7 @@ function Thread({
         )}
       </div>
 
-      <form onSubmit={submit} className="flex items-center gap-2 border-t border-white/[0.07] p-3">
+      <form onSubmit={submit} className="flex items-center gap-2 border-t border-white/[0.07] px-4 py-3">
         <input
           value={draft}
           onChange={(e) => {
@@ -194,7 +194,7 @@ function NewConversation({
   const start = useStartConversation()
 
   return (
-    <div className="flex w-full flex-col md:flex-1">
+    <div className="flex w-full min-w-0 flex-col md:flex-1">
       <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3">
         <button
           type="button"
@@ -455,7 +455,7 @@ function MockMessages() {
         </div>
 
         {/* Active thread */}
-        <div className={cn('w-full flex-col md:flex md:flex-1', mobileThreadOpen ? 'flex' : 'hidden')}>
+        <div className={cn('w-full min-w-0 flex-col md:flex md:flex-1', mobileThreadOpen ? 'flex' : 'hidden')}>
           <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3">
             <button
               type="button"
@@ -500,7 +500,7 @@ function MockMessages() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 border-t border-white/[0.07] p-3">
+          <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 py-3">
             <input
               placeholder="Message…"
               aria-label="Message"
