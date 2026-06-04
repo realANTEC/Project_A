@@ -15,6 +15,8 @@ export type DbMessage = {
   time: string
   createdAt: string
   reactions: MsgReaction[]
+  /** The message this one replies to (quoted), resolved via the query embed. */
+  parent: { id: string; text: string; fromMe: boolean } | null
 }
 
 /** The reaction palette shown in the message action bar (matches the IG/Messenger set). */
@@ -33,10 +35,14 @@ export type Profile = User & { id: string }
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 type MemberRow = { user_id: string; last_read_at: string | null; profile: DbAuthor | null }
-type MsgRow = { id: string; body: string; sender_id: string; created_at: string }
+type MsgRow = { id: string; body: string; sender_id: string; created_at: string; reply_to?: string | null }
 type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages: MsgRow[] }
 type ReactionRow = { user_id: string; emoji: string }
-type MsgRowWithReactions = MsgRow & { message_reactions?: ReactionRow[] | null }
+type ParentRow = { id: string; body: string; sender_id: string }
+type MsgRowWithReactions = MsgRow & {
+  message_reactions?: ReactionRow[] | null
+  parent?: ParentRow | null
+}
 
 function toDbMessage(m: MsgRowWithReactions, myId?: string): DbMessage {
   return {
@@ -46,6 +52,7 @@ function toDbMessage(m: MsgRowWithReactions, myId?: string): DbMessage {
     time: clock(m.created_at),
     createdAt: m.created_at,
     reactions: (m.message_reactions ?? []).map((r) => ({ userId: r.user_id, emoji: r.emoji })),
+    parent: m.parent ? { id: m.parent.id, text: m.parent.body, fromMe: m.parent.sender_id === myId } : null,
   }
 }
 
@@ -159,7 +166,9 @@ export function useConversationMessages(conversationId: string | null) {
       if (!supabase || !conversationId) return []
       const { data, error } = await supabase
         .from('messages')
-        .select('id, body, sender_id, created_at, message_reactions(user_id, emoji)')
+        .select(
+          'id, body, sender_id, created_at, reply_to, parent:reply_to(id, body, sender_id), message_reactions(user_id, emoji)',
+        )
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
       if (error) throw error
@@ -186,6 +195,7 @@ export function useConversationMessages(conversationId: string | null) {
           if (m.sender_id === myId) return // our optimistic update already added it
           qc.setQueryData<DbMessage[]>(['messages', conversationId], (old) => {
             if (old?.some((x) => x.id === m.id)) return old
+            const parent = m.reply_to ? old?.find((x) => x.id === m.reply_to) : undefined
             return [
               ...(old ?? []),
               {
@@ -195,9 +205,13 @@ export function useConversationMessages(conversationId: string | null) {
                 time: clock(m.created_at),
                 createdAt: m.created_at,
                 reactions: [],
+                parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
               },
             ]
           })
+          // A reply's quoted parent isn't in the realtime payload — refetch so the query's
+          // embed fills it in (also recovers a parent this client didn't have cached).
+          if (m.reply_to) void qc.invalidateQueries({ queryKey: ['messages', conversationId] })
           void qc.invalidateQueries({ queryKey: ['conversations'] })
         },
       )
@@ -223,18 +237,27 @@ export function useSendMessage() {
   const qc = useQueryClient()
   const { session } = useAuth()
   return useMutation({
-    mutationFn: async ({ conversationId, body }: { conversationId: string; body: string }) => {
+    mutationFn: async ({
+      conversationId,
+      body,
+      replyTo,
+    }: {
+      conversationId: string
+      body: string
+      replyTo?: string | null
+    }) => {
       if (!supabase || !session) throw new Error('Not signed in')
       const { error } = await supabase
         .from('messages')
-        .insert({ conversation_id: conversationId, sender_id: session.user.id, body })
+        .insert({ conversation_id: conversationId, sender_id: session.user.id, body, reply_to: replyTo ?? null })
       if (error) throw error
     },
-    onMutate: async ({ conversationId, body }) => {
+    onMutate: async ({ conversationId, body, replyTo }) => {
       const key = ['messages', conversationId]
       await qc.cancelQueries({ queryKey: key })
       const prev = qc.getQueryData<DbMessage[]>(key)
       const now = new Date().toISOString()
+      const parent = replyTo ? prev?.find((x) => x.id === replyTo) : undefined
       qc.setQueryData<DbMessage[]>(key, (old) => [
         ...(old ?? []),
         {
@@ -244,6 +267,7 @@ export function useSendMessage() {
           time: clock(now),
           createdAt: now,
           reactions: [],
+          parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
         },
       ])
       return { prev, conversationId }

@@ -54,15 +54,22 @@ function TypingDot({ delay = 0 }: { delay?: number }) {
   )
 }
 
-/** One chat message: bubble + reaction pills, openable via hover button / long-press / right-click. */
+/** One chat message: optional quoted reply + bubble + reaction pills. Openable via the
+    hover button / long-press / right-click. */
 function MessageRow({
   message,
   myId,
+  peerName,
+  highlighted,
   onOpenMenu,
+  onJump,
 }: {
   message: DbMessage
   myId?: string
+  peerName: string
+  highlighted: boolean
   onOpenMenu: (messageId: string, rect: DOMRect) => void
+  onJump: (messageId: string) => void
 }) {
   const bubbleRef = useRef<HTMLDivElement>(null)
   const pressTimer = useRef<number | null>(null)
@@ -76,6 +83,7 @@ function MessageRow({
     pressTimer.current = null
   }
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return // ignore right/middle press; right-click is handled by onContextMenu
     pressStart.current = { x: e.clientX, y: e.clientY }
     pressTimer.current = window.setTimeout(open, 450)
   }
@@ -87,7 +95,14 @@ function MessageRow({
   const reactions = groupReactions(message.reactions, myId)
 
   return (
-    <div className={cn('group/msg flex', message.fromMe ? 'justify-end' : 'justify-start')}>
+    <div
+      id={`msg-${message.id}`}
+      className={cn(
+        'group/msg flex scroll-mt-6 rounded-2xl transition-colors duration-500',
+        message.fromMe ? 'justify-end' : 'justify-start',
+        highlighted && 'bg-white/[0.07]',
+      )}
+    >
       <div className="relative max-w-[75%]">
         <div
           ref={bubbleRef}
@@ -106,6 +121,21 @@ function MessageRow({
               : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
           )}
         >
+          {message.parent && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onJump(message.parent!.id)
+              }}
+              className="mb-1.5 flex w-full flex-col items-start gap-0.5 rounded-lg border-l-2 border-white/40 bg-black/15 px-2 py-1 text-left"
+            >
+              <span className="text-[11px] font-semibold text-white/80">
+                {message.parent.fromMe ? 'You' : peerName}
+              </span>
+              <span className="line-clamp-1 text-[11px] text-white/60">{message.parent.text}</span>
+            </button>
+          )}
           <MessageBody text={message.text} fromMe={message.fromMe} />
         </div>
 
@@ -176,6 +206,16 @@ function Thread({
   const myId = session?.user.id
   const [menu, setMenu] = useState<{ id: string; rect: DOMRect } | null>(null)
   const menuMessage = menu ? (messages.find((m) => m.id === menu.id) ?? null) : null
+  const [replyTo, setReplyTo] = useState<DbMessage | null>(null)
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Scroll to a quoted message and flash it (event-driven setState; not an effect).
+  const jumpTo = (id: string) => {
+    document.getElementById(`msg-${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    setHighlightId(id)
+    window.setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 1600)
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -190,8 +230,9 @@ function Thread({
     e.preventDefault()
     const t = draft.trim()
     if (!t) return
-    send.mutate({ conversationId: conversation.id, body: t })
+    send.mutate({ conversationId: conversation.id, body: t, replyTo: replyTo?.id ?? null })
     setDraft('')
+    setReplyTo(null)
   }
 
   return (
@@ -253,7 +294,15 @@ function Thread({
           </p>
         )}
         {messages.map((m) => (
-          <MessageRow key={m.id} message={m} myId={myId} onOpenMenu={(id, rect) => setMenu({ id, rect })} />
+          <MessageRow
+            key={m.id}
+            message={m}
+            myId={myId}
+            peerName={conversation.user.name.split(' ')[0]}
+            highlighted={highlightId === m.id}
+            onOpenMenu={(id, rect) => setMenu({ id, rect })}
+            onJump={jumpTo}
+          />
         ))}
         {theyTyping && (
           <div className="flex justify-start">
@@ -266,8 +315,31 @@ function Thread({
         )}
       </div>
 
-      <form onSubmit={submit} className="flex items-center gap-2 border-t border-white/[0.07] px-4 py-3">
+      {replyTo && (
+        <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 pb-1 pt-2.5">
+          <div className="min-w-0 flex-1 rounded-lg border-l-2 border-white/30 bg-white/[0.04] px-2.5 py-1.5">
+            <p className="text-xs font-semibold text-lilac">
+              Replying to {replyTo.fromMe ? 'yourself' : conversation.user.name.split(' ')[0]}
+            </p>
+            <p className="truncate text-xs text-white/60">{replyTo.text}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyTo(null)}
+            aria-label="Cancel reply"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      <form
+        onSubmit={submit}
+        className={cn('flex items-center gap-2 px-4 py-3', !replyTo && 'border-t border-white/[0.07]')}
+      >
         <input
+          ref={inputRef}
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value)
@@ -293,6 +365,10 @@ function Thread({
           myReaction={menuMessage.reactions.find((r) => r.userId === myId)?.emoji}
           anchorRect={menu.rect}
           onReact={(emoji) => toggleReaction.mutate({ messageId: menuMessage.id, emoji })}
+          onReply={() => {
+            setReplyTo(menuMessage)
+            requestAnimationFrame(() => inputRef.current?.focus())
+          }}
           onCopy={() => {
             navigator.clipboard?.writeText(menuMessage.text).then(
               () => toast('Copied'),

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Copy } from 'lucide-react'
+import { Copy, Reply } from 'lucide-react'
 import { MESSAGE_REACTIONS, type DbMessage } from '@/lib/messages'
 import { cn } from '@/lib/cn'
 import { EmojiPicker } from './EmojiPicker'
@@ -12,6 +12,7 @@ export type MessageActionsMenuProps = {
   /** Bounding rect of the message bubble — the menu anchors to it. */
   anchorRect: DOMRect
   onReact: (emoji: string) => void
+  onReply?: () => void
   onCopy: () => void
   onClose: () => void
 }
@@ -26,6 +27,7 @@ export function MessageActionsMenu({
   myReaction,
   anchorRect,
   onReact,
+  onReply,
   onCopy,
   onClose,
 }: MessageActionsMenuProps) {
@@ -117,8 +119,22 @@ export function MessageActionsMenu({
 
       {showPicker && <EmojiPicker onPick={(emoji) => react(emoji)} />}
 
-      {/* Action list (grows as later phases add Reply / Pin / Delete / Unsend) */}
+      {/* Action list (grows as later phases add Pin / Delete / Unsend) */}
       <div className="glass edge-light flex flex-col rounded-2xl p-1.5 text-sm">
+        {onReply && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onReply()
+              onClose()
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-white/85 transition hover:bg-white/[0.06]"
+          >
+            <Reply className="h-[18px] w-[18px] text-white/70" />
+            Reply
+          </button>
+        )}
         <button
           type="button"
           role="menuitem"
