@@ -8,6 +8,7 @@ import { isSupabaseConfigured } from '@/lib/supabase'
 import { useFeedPosts } from '@/lib/posts'
 import { fallbackLayoutId, usePostModal } from '@/lib/post-modal'
 import { Page } from '@/components/Page'
+import { RetryBanner } from '@/components/ErrorState'
 
 const FILTERS = ['For you', 'Nature', 'Architecture', 'Portraits', 'Minimal', 'Color']
 
@@ -62,10 +63,10 @@ export function ExplorePage() {
   const { openPost } = usePostModal()
   const [filter, setFilter] = useState(0)
   // Real DB posts layered over the curated mosaic (newest first), like the home feed.
-  const { data: dbPosts = [] } = useFeedPosts()
+  const feedQuery = useFeedPosts()
   const posts = useMemo(
-    () => (isSupabaseConfigured ? [...dbPosts, ...explorePosts] : explorePosts),
-    [dbPosts],
+    () => (isSupabaseConfigured ? [...(feedQuery.data ?? []), ...explorePosts] : explorePosts),
+    [feedQuery.data],
   )
   // "For you" (index 0) shows everything; a category shows its curated posts.
   const visible = useMemo(
@@ -96,6 +97,12 @@ export function ExplorePage() {
           ))}
         </div>
       </div>
+
+      {isSupabaseConfigured && feedQuery.isError && (
+        <div className="mb-4">
+          <RetryBanner message="Couldn’t load the latest posts." onRetry={() => feedQuery.refetch()} />
+        </div>
+      )}
 
       {/* Masonry mosaic */}
       <div className="columns-2 gap-3 sm:columns-3">

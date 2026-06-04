@@ -8,6 +8,7 @@ import { usePostModal } from '@/lib/post-modal'
 import { Page } from '@/components/Page'
 import { PhotoTile } from '@/components/PhotoTile'
 import { EmptyState } from '@/components/EmptyState'
+import { ErrorState } from '@/components/ErrorState'
 
 export function SavedPage() {
   const { posts, saved } = useFeed()
@@ -39,6 +40,8 @@ export function SavedPage() {
             <PhotoTile key={`${post.id}-${i}`} post={post} index={i} onOpen={(el) => openPost(post, el)} />
           ))}
         </div>
+      ) : dbSaved.isError ? (
+        <ErrorState title="Couldn’t load your saved posts" onRetry={() => dbSaved.refetch()} />
       ) : (
         <EmptyState
           icon={Bookmark}

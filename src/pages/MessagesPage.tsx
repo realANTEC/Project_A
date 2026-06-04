@@ -236,7 +236,7 @@ function NewConversation({
 }
 
 function RealMessages() {
-  const { data: conversations = [], isLoading } = useConversations()
+  const { data: conversations = [], isLoading, isError, refetch } = useConversations()
   const online = useOnline()
   const { conversationId } = useParams()
   const navigate = useNavigate()
@@ -282,7 +282,19 @@ function RealMessages() {
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
             {isLoading && <p className="px-4 py-6 text-sm text-white/55">Loading…</p>}
-            {!isLoading && conversations.length === 0 && (
+            {!isLoading && isError && (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-white/55">Couldn’t load your messages.</p>
+                <button
+                  type="button"
+                  onClick={() => refetch()}
+                  className="mt-2 text-sm font-semibold text-lilac transition hover:text-white"
+                >
+                  Try again
+                </button>
+              </div>
+            )}
+            {!isLoading && !isError && conversations.length === 0 && (
               <div className="px-4 py-12 text-center">
                 <p className="text-sm text-white/55">No conversations yet.</p>
                 <button

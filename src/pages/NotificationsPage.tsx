@@ -10,6 +10,7 @@ import { useMyFollowing, useToggleFollow } from '@/lib/profile'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { EmptyState } from '@/components/EmptyState'
+import { ErrorState } from '@/components/ErrorState'
 
 const ICON: Record<NotifType, typeof Heart> = {
   like: Heart,
@@ -108,7 +109,7 @@ function RealRow({
 }
 
 function RealNotifications() {
-  const { data: notifs = [], isLoading } = useNotifications()
+  const { data: notifs = [], isLoading, isError, refetch } = useNotifications()
   const { mutate: markRead } = useMarkNotificationsRead()
   const { data: following = new Set<string>() } = useMyFollowing()
   const toggleFollow = useToggleFollow()
@@ -125,6 +126,8 @@ function RealNotifications() {
         <div className="grid place-items-center py-20" aria-label="Loading" role="status">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-white/70" />
         </div>
+      ) : isError ? (
+        <ErrorState title="Couldn’t load notifications" onRetry={() => refetch()} />
       ) : notifs.length === 0 ? (
         <EmptyState
           icon={Bell}

@@ -26,6 +26,7 @@ import { PhotoTile } from '@/components/PhotoTile'
 import { EditProfileModal } from '@/components/EditProfileModal'
 import { FollowListModal } from '@/components/FollowListModal'
 import { EmptyState } from '@/components/EmptyState'
+import { ErrorState } from '@/components/ErrorState'
 
 const HIGHLIGHTS = [
   { label: 'Travel', icon: Sparkles },
@@ -65,6 +66,8 @@ type ProfileViewProps = {
   stats: { posts: number; followers: number; following: number }
   grid: Post[]
   gridLoading?: boolean
+  gridError?: boolean
+  onRetryGrid?: () => void
   isYou: boolean
   isFollowing?: boolean
   onToggleFollow?: () => void
@@ -83,6 +86,8 @@ function ProfileView({
   stats,
   grid,
   gridLoading,
+  gridError,
+  onRetryGrid,
   isYou,
   isFollowing,
   onToggleFollow,
@@ -223,6 +228,8 @@ function ProfileView({
       {tab === 'posts' ? (
         gridLoading ? (
           <Spinner />
+        ) : gridError ? (
+          <ErrorState title="Couldn’t load posts" onRetry={onRetryGrid} />
         ) : grid.length === 0 ? (
           <EmptyState
             icon={Camera}
@@ -271,6 +278,8 @@ function RealProfile({ profile }: { profile: DbProfile }) {
         }}
         grid={posts.data ?? []}
         gridLoading={posts.isLoading}
+        gridError={posts.isError}
+        onRetryGrid={() => posts.refetch()}
         isYou={isYou}
         isFollowing={isFollowing}
         onToggleFollow={() => toggleFollow.mutate({ profileId: profile.id, following: isFollowing })}
@@ -331,12 +340,21 @@ function MockProfile({ handle }: { handle: string }) {
 
 /** Resolve the @handle to a real DB profile, falling back to curated mock data. */
 function ResolvedProfile({ handle }: { handle: string }) {
-  const { data: profile, isLoading } = useProfileByHandle(handle)
+  const { data: profile, isLoading, isError, refetch } = useProfileByHandle(handle)
   if (isLoading)
     return (
       <Page className="mx-auto max-w-[935px]">
         <div className="glass edge-light mt-2 rounded-4xl p-10 lg:mt-6">
           <Spinner />
+        </div>
+      </Page>
+    )
+  // A real load failure — distinct from "not found" (which falls back to the curated persona).
+  if (isError)
+    return (
+      <Page className="mx-auto max-w-[935px]">
+        <div className="glass edge-light mt-2 rounded-4xl p-10 lg:mt-6">
+          <ErrorState title="Couldn’t load this profile" onRetry={() => refetch()} />
         </div>
       </Page>
     )

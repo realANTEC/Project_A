@@ -12,11 +12,13 @@ import { FeedTabs } from '@/components/FeedTabs'
 import { FeedCard } from '@/components/FeedCard'
 import { RightRail } from '@/components/RightRail'
 import { EmptyState } from '@/components/EmptyState'
+import { RetryBanner } from '@/components/ErrorState'
 
 export function HomePage() {
   const [tab, setTab] = useState(0) // 0 = For you, 1 = Following
   const { posts: localPosts } = useFeed()
-  const { data: dbPosts } = useFeedPosts()
+  const feedQuery = useFeedPosts()
+  const dbPosts = feedQuery.data
   const { data: following } = useMyFollowing()
   const baseFeed = isSupabaseConfigured ? [...(dbPosts ?? []), ...seedPosts] : localPosts
   const onFollowing = tab === 1
@@ -36,6 +38,9 @@ export function HomePage() {
         <div className="flex flex-col gap-5">
           <Stories />
           <Composer />
+          {isSupabaseConfigured && feedQuery.isError && (
+            <RetryBanner message="Couldn’t load the latest posts." onRetry={() => feedQuery.refetch()} />
+          )}
           {onFollowing && feed.length === 0 ? (
             <EmptyState
               icon={Users}
