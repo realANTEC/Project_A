@@ -142,15 +142,42 @@ export type Database = {
         Relationships: []
       }
       messages: {
-        Row: { id: string; conversation_id: string; sender_id: string; body: string; created_at: Ts }
-        Insert: { id?: string; conversation_id: string; sender_id: string; body: string; created_at?: Ts }
+        Row: {
+          id: string
+          conversation_id: string
+          sender_id: string
+          body: string
+          reply_to: string | null
+          created_at: Ts
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          sender_id: string
+          body: string
+          reply_to?: string | null
+          created_at?: Ts
+        }
         Update: Partial<Database['public']['Tables']['messages']['Insert']>
+        Relationships: []
+      }
+      message_reactions: {
+        Row: { message_id: string; user_id: string; emoji: string; created_at: Ts }
+        Insert: { message_id: string; user_id: string; emoji: string; created_at?: Ts }
+        Update: Partial<Database['public']['Tables']['message_reactions']['Insert']>
+        Relationships: []
+      }
+      message_pins: {
+        Row: { message_id: string; conversation_id: string; pinned_by: string; created_at: Ts }
+        Insert: { message_id: string; conversation_id: string; pinned_by: string; created_at?: Ts }
+        Update: Partial<Database['public']['Tables']['message_pins']['Insert']>
         Relationships: []
       }
     }
     Views: Record<string, never>
     Functions: {
       is_member: { Args: { conv: string }; Returns: boolean }
+      message_conversation: { Args: { msg: string }; Returns: string }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

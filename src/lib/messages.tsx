@@ -7,7 +7,18 @@ import { relativeTime } from './format'
 import { authorToUser, type DbAuthor } from './posts'
 import type { User } from '@/data/feed'
 
-export type DbMessage = { id: string; fromMe: boolean; text: string; time: string; createdAt: string }
+export type MsgReaction = { userId: string; emoji: string }
+export type DbMessage = {
+  id: string
+  fromMe: boolean
+  text: string
+  time: string
+  createdAt: string
+  reactions: MsgReaction[]
+}
+
+/** The reaction palette shown in the message action bar (matches the IG/Messenger set). */
+export const MESSAGE_REACTIONS = ['❤️', '😂', '😮', '😢', '😡', '👍'] as const
 export type DbConversation = {
   id: string
   otherId: string
@@ -24,6 +35,31 @@ const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-d
 type MemberRow = { user_id: string; last_read_at: string | null; profile: DbAuthor | null }
 type MsgRow = { id: string; body: string; sender_id: string; created_at: string }
 type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages: MsgRow[] }
+type ReactionRow = { user_id: string; emoji: string }
+type MsgRowWithReactions = MsgRow & { message_reactions?: ReactionRow[] | null }
+
+function toDbMessage(m: MsgRowWithReactions, myId?: string): DbMessage {
+  return {
+    id: m.id,
+    fromMe: m.sender_id === myId,
+    text: m.body,
+    time: clock(m.created_at),
+    createdAt: m.created_at,
+    reactions: (m.message_reactions ?? []).map((r) => ({ userId: r.user_id, emoji: r.emoji })),
+  }
+}
+
+/** Collapse a message's reactions into one entry per emoji with a count + whether I reacted. */
+export function groupReactions(reactions: MsgReaction[], myId?: string) {
+  const map = new Map<string, { count: number; mine: boolean }>()
+  for (const r of reactions) {
+    const cur = map.get(r.emoji) ?? { count: 0, mine: false }
+    cur.count += 1
+    if (r.userId === myId) cur.mine = true
+    map.set(r.emoji, cur)
+  }
+  return [...map.entries()].map(([emoji, v]) => ({ emoji, ...v }))
+}
 
 /** Every conversation the signed-in user belongs to, most-recent activity first. */
 export function useConversations() {
@@ -123,19 +159,12 @@ export function useConversationMessages(conversationId: string | null) {
       if (!supabase || !conversationId) return []
       const { data, error } = await supabase
         .from('messages')
-        .select('id, body, sender_id, created_at')
+        .select('id, body, sender_id, created_at, message_reactions(user_id, emoji)')
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
       if (error) throw error
-      return (data ?? []).map(
-        (m): DbMessage => ({
-          id: m.id,
-          fromMe: m.sender_id === myId,
-          text: m.body,
-          time: clock(m.created_at),
-          createdAt: m.created_at,
-        }),
-      )
+      const rows = (data ?? []) as unknown as MsgRowWithReactions[]
+      return rows.map((m) => toDbMessage(m, myId))
     },
   })
 
@@ -159,12 +188,27 @@ export function useConversationMessages(conversationId: string | null) {
             if (old?.some((x) => x.id === m.id)) return old
             return [
               ...(old ?? []),
-              { id: m.id, fromMe: false, text: m.body, time: clock(m.created_at), createdAt: m.created_at },
+              {
+                id: m.id,
+                fromMe: false,
+                text: m.body,
+                time: clock(m.created_at),
+                createdAt: m.created_at,
+                reactions: [],
+              },
             ]
           })
           void qc.invalidateQueries({ queryKey: ['conversations'] })
         },
       )
+      // A reaction changed in one of my conversations (realtime delivery is RLS-scoped to
+      // them). Refetch the OPEN thread so its reaction pills update live. Unconditional on
+      // purpose: the reacted message may not be in this client's cache yet (the message-INSERT
+      // and reaction events race), so guarding on "is it in the cache" intermittently dropped
+      // the update. An extra refetch of just the open conversation is cheap and correct.
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, () => {
+        void qc.invalidateQueries({ queryKey: ['messages', conversationId] })
+      })
       .subscribe()
     return () => {
       void client.removeChannel(channel)
@@ -193,7 +237,14 @@ export function useSendMessage() {
       const now = new Date().toISOString()
       qc.setQueryData<DbMessage[]>(key, (old) => [
         ...(old ?? []),
-        { id: `temp-${Date.now()}`, fromMe: true, text: body, time: clock(now), createdAt: now },
+        {
+          id: `temp-${Date.now()}`,
+          fromMe: true,
+          text: body,
+          time: clock(now),
+          createdAt: now,
+          reactions: [],
+        },
       ])
       return { prev, conversationId }
     },
@@ -204,6 +255,61 @@ export function useSendMessage() {
       void qc.invalidateQueries({ queryKey: ['messages', vars.conversationId] })
       void qc.invalidateQueries({ queryKey: ['conversations'] })
     },
+  })
+}
+
+/**
+ * Add / change / remove MY reaction on a message — one reaction per user per message
+ * (re-tapping the same emoji removes it; tapping a different one replaces it). Optimistic.
+ */
+export function useToggleReaction(conversationId: string | null) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const key = ['messages', conversationId]
+  return useMutation({
+    mutationFn: async ({ messageId, emoji }: { messageId: string; emoji: string }) => {
+      if (!supabase || !session) throw new Error('Not signed in')
+      const myId = session.user.id
+      // onMutate has already applied the optimistic toggle, so the cache now reflects the
+      // desired end state: if my reaction is this emoji I just added/changed it (upsert),
+      // otherwise I just removed it (delete).
+      const mineAfter = qc
+        .getQueryData<DbMessage[]>(key)
+        ?.find((m) => m.id === messageId)
+        ?.reactions.find((r) => r.userId === myId)?.emoji
+      if (mineAfter === emoji) {
+        const { error } = await supabase
+          .from('message_reactions')
+          .upsert({ message_id: messageId, user_id: myId, emoji }, { onConflict: 'message_id,user_id' })
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('message_reactions')
+          .delete()
+          .eq('message_id', messageId)
+          .eq('user_id', myId)
+        if (error) throw error
+      }
+    },
+    onMutate: async ({ messageId, emoji }) => {
+      if (!session) return
+      const myId = session.user.id
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<DbMessage[]>(key)
+      qc.setQueryData<DbMessage[]>(key, (old) =>
+        (old ?? []).map((m) => {
+          if (m.id !== messageId) return m
+          const mineNow = m.reactions.find((r) => r.userId === myId)?.emoji
+          const others = m.reactions.filter((r) => r.userId !== myId)
+          return { ...m, reactions: mineNow === emoji ? others : [...others, { userId: myId, emoji }] }
+        }),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
   })
 }
 

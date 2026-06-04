@@ -1,27 +1,40 @@
-import { type FormEvent, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  type FormEvent,
+  type PointerEvent as ReactPointerEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Info, Pencil, Phone, Search, Send, Video, X } from 'lucide-react'
+import { ArrowLeft, Info, Pencil, Phone, Search, Send, SmilePlus, Video, X } from 'lucide-react'
 import { avatar, resolveAvatar } from '@/data/feed'
 import { conversations as mockConversations } from '@/data/messages'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import {
   type DbConversation,
+  type DbMessage,
+  groupReactions,
   useConversationMessages,
   useConversations,
   useMarkRead,
   useProfiles,
   useSendMessage,
   useStartConversation,
+  useToggleReaction,
   useTyping,
 } from '@/lib/messages'
 import { useOnline } from '@/lib/presence'
 import { useCall } from '@/lib/calls'
+import { useAuth } from '@/lib/auth'
+import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/cn'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
+import { MessageActionsMenu } from '@/components/MessageActionsMenu'
 
 export function MessagesPage() {
   return isSupabaseConfigured ? <RealMessages /> : <MockMessages />
@@ -38,6 +51,105 @@ function TypingDot({ delay = 0 }: { delay?: number }) {
       animate={{ opacity: [0.3, 1, 0.3], y: [0, -2, 0] }}
       transition={{ duration: 0.9, repeat: Infinity, delay }}
     />
+  )
+}
+
+/** One chat message: bubble + reaction pills, openable via hover button / long-press / right-click. */
+function MessageRow({
+  message,
+  myId,
+  onOpenMenu,
+}: {
+  message: DbMessage
+  myId?: string
+  onOpenMenu: (messageId: string, rect: DOMRect) => void
+}) {
+  const bubbleRef = useRef<HTMLDivElement>(null)
+  const pressTimer = useRef<number | null>(null)
+  const pressStart = useRef<{ x: number; y: number } | null>(null)
+
+  const open = () => {
+    if (bubbleRef.current) onOpenMenu(message.id, bubbleRef.current.getBoundingClientRect())
+  }
+  const cancelPress = () => {
+    if (pressTimer.current) window.clearTimeout(pressTimer.current)
+    pressTimer.current = null
+  }
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    pressStart.current = { x: e.clientX, y: e.clientY }
+    pressTimer.current = window.setTimeout(open, 450)
+  }
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (pressStart.current && Math.hypot(e.clientX - pressStart.current.x, e.clientY - pressStart.current.y) > 10)
+      cancelPress()
+  }
+
+  const reactions = groupReactions(message.reactions, myId)
+
+  return (
+    <div className={cn('group/msg flex', message.fromMe ? 'justify-end' : 'justify-start')}>
+      <div className="relative max-w-[75%]">
+        <div
+          ref={bubbleRef}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            open()
+          }}
+          onPointerDown={onPointerDown}
+          onPointerUp={cancelPress}
+          onPointerMove={onPointerMove}
+          onPointerCancel={cancelPress}
+          className={cn(
+            'select-none break-words px-4 py-2.5 text-sm leading-relaxed',
+            message.fromMe
+              ? 'bg-aurora rounded-2xl rounded-br-md text-white'
+              : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
+          )}
+        >
+          <MessageBody text={message.text} fromMe={message.fromMe} />
+        </div>
+
+        {/* Desktop hover trigger (long-press / right-click also open the menu). */}
+        <button
+          type="button"
+          aria-label="Message actions"
+          onClick={open}
+          className={cn(
+            'absolute top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-white/50 opacity-0 transition hover:bg-white/10 hover:text-white focus-visible:opacity-100 group-hover/msg:opacity-100',
+            message.fromMe ? '-left-9' : '-right-9',
+          )}
+        >
+          <SmilePlus className="h-[18px] w-[18px]" />
+        </button>
+
+        {/* Reaction pills tuck under the bubble's bottom corner. In-flow (not absolute) so
+            they reserve real vertical space and never overlap the message below. */}
+        {reactions.length > 0 && (
+          <div
+            className={cn(
+              'relative z-10 -mt-3 flex',
+              message.fromMe ? 'justify-end pr-2' : 'justify-start pl-2',
+            )}
+          >
+            <button
+              type="button"
+              onClick={open}
+              aria-label="Reactions"
+              className="glass edge-light flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none"
+            >
+              {reactions.map((r) => (
+                <span key={r.emoji} className={cn(r.mine && 'drop-shadow-[0_0_5px_rgba(190,150,255,0.9)]')}>
+                  {r.emoji}
+                </span>
+              ))}
+              {message.reactions.length > 1 && (
+                <span className="ml-0.5 font-semibold text-white/70">{message.reactions.length}</span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -58,6 +170,12 @@ function Thread({
   const navigate = useNavigate()
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const toggleReaction = useToggleReaction(conversation.id)
+  const { toast } = useToast()
+  const { session } = useAuth()
+  const myId = session?.user.id
+  const [menu, setMenu] = useState<{ id: string; rect: DOMRect } | null>(null)
+  const menuMessage = menu ? (messages.find((m) => m.id === menu.id) ?? null) : null
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -135,18 +253,7 @@ function Thread({
           </p>
         )}
         {messages.map((m) => (
-          <div key={m.id} className={cn('flex', m.fromMe ? 'justify-end' : 'justify-start')}>
-            <div
-              className={cn(
-                'max-w-[75%] break-words px-4 py-2.5 text-sm leading-relaxed',
-                m.fromMe
-                  ? 'bg-aurora rounded-2xl rounded-br-md text-white'
-                  : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
-              )}
-            >
-              <MessageBody text={m.text} fromMe={m.fromMe} />
-            </div>
-          </div>
+          <MessageRow key={m.id} message={m} myId={myId} onOpenMenu={(id, rect) => setMenu({ id, rect })} />
         ))}
         {theyTyping && (
           <div className="flex justify-start">
@@ -179,6 +286,22 @@ function Thread({
           <Send className="h-5 w-5" />
         </button>
       </form>
+
+      {menu && menuMessage && (
+        <MessageActionsMenu
+          message={menuMessage}
+          myReaction={menuMessage.reactions.find((r) => r.userId === myId)?.emoji}
+          anchorRect={menu.rect}
+          onReact={(emoji) => toggleReaction.mutate({ messageId: menuMessage.id, emoji })}
+          onCopy={() => {
+            navigator.clipboard?.writeText(menuMessage.text).then(
+              () => toast('Copied'),
+              () => toast('Couldn’t copy'),
+            )
+          }}
+          onClose={() => setMenu(null)}
+        />
+      )}
     </div>
   )
 }

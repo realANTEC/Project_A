@@ -259,3 +259,80 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---- message actions (reactions, reply, unsend, pin) -----------------------
+-- All idempotent / safe to re-run.
+
+-- Reply: a message may reference the message it is replying to.
+alter table public.messages
+  add column if not exists reply_to uuid references public.messages (id) on delete set null;
+
+-- Unsend = delete-for-everyone, own messages only.
+drop policy if exists "messages_delete_own" on public.messages;
+create policy "messages_delete_own" on public.messages
+  for delete using (auth.uid() = sender_id);
+
+-- So realtime DELETE events carry the full old row (the conversation_id filter
+-- then matches on delete, and clients can act on the removed message).
+alter table public.messages replica identity full;
+
+-- Security-definer lookup of a message's conversation, so the reaction policies
+-- can member-check without recursing through messages' own RLS.
+create or replace function public.message_conversation(msg uuid)
+returns uuid language sql security definer set search_path = public stable as $$
+  select conversation_id from public.messages where id = msg;
+$$;
+
+-- Reactions: one reaction per (message, user) — re-reacting replaces it (IG-style).
+create table if not exists public.message_reactions (
+  message_id uuid not null references public.messages (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  emoji text not null check (char_length(emoji) between 1 and 16),
+  created_at timestamptz not null default now(),
+  primary key (message_id, user_id)
+);
+alter table public.message_reactions enable row level security;
+drop policy if exists "message_reactions_select_member" on public.message_reactions;
+drop policy if exists "message_reactions_insert_own" on public.message_reactions;
+drop policy if exists "message_reactions_update_own" on public.message_reactions;
+drop policy if exists "message_reactions_delete_own" on public.message_reactions;
+create policy "message_reactions_select_member" on public.message_reactions for select
+  using (public.is_member(public.message_conversation(message_id)));
+create policy "message_reactions_insert_own" on public.message_reactions for insert
+  with check (auth.uid() = user_id and public.is_member(public.message_conversation(message_id)));
+create policy "message_reactions_update_own" on public.message_reactions for update
+  using (auth.uid() = user_id);
+create policy "message_reactions_delete_own" on public.message_reactions for delete
+  using (auth.uid() = user_id);
+
+-- Pins: any member can pin/unpin a message; one pin row per message.
+create table if not exists public.message_pins (
+  message_id uuid primary key references public.messages (id) on delete cascade,
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  pinned_by uuid not null references public.profiles (id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+alter table public.message_pins enable row level security;
+drop policy if exists "message_pins_select_member" on public.message_pins;
+drop policy if exists "message_pins_insert_member" on public.message_pins;
+drop policy if exists "message_pins_delete_member" on public.message_pins;
+create policy "message_pins_select_member" on public.message_pins for select
+  using (public.is_member(conversation_id));
+create policy "message_pins_insert_member" on public.message_pins for insert
+  with check (auth.uid() = pinned_by and public.is_member(conversation_id));
+create policy "message_pins_delete_member" on public.message_pins for delete
+  using (public.is_member(conversation_id));
+
+-- Realtime for the new tables.
+do $$
+declare t text;
+begin
+  foreach t in array array['message_reactions', 'message_pins'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
