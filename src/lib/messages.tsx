@@ -5,6 +5,7 @@ import { supabase } from './supabase'
 import { useAuth } from './auth'
 import { relativeTime } from './format'
 import { authorToUser, type DbAuthor } from './posts'
+import { type Attachment, attachmentPreview } from './attachments'
 import type { User } from '@/data/feed'
 
 export type MsgReaction = { userId: string; emoji: string }
@@ -19,6 +20,8 @@ export type DbMessage = {
   reactions: MsgReaction[]
   /** The message this one replies to (quoted), resolved via the query embed. */
   parent: { id: string; text: string; fromMe: boolean } | null
+  /** A rich attachment (image, document, location, contact, poll, event), or null. */
+  attachment: Attachment | null
 }
 
 /** The reaction palette shown in the message action bar (matches the IG/Messenger set). */
@@ -44,6 +47,7 @@ type MsgRow = {
   created_at: string
   reply_to?: string | null
   edited_at?: string | null
+  attachment?: Attachment | null
 }
 type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages: MsgRow[] }
 type ReactionRow = { user_id: string; emoji: string }
@@ -63,6 +67,7 @@ function toDbMessage(m: MsgRowWithReactions, myId?: string): DbMessage {
     editedAt: m.edited_at ?? null,
     reactions: (m.message_reactions ?? []).map((r) => ({ userId: r.user_id, emoji: r.emoji })),
     parent: m.parent ? { id: m.parent.id, text: m.parent.body, fromMe: m.parent.sender_id === myId } : null,
+    attachment: m.attachment ?? null,
   }
 }
 
@@ -91,7 +96,7 @@ export function useConversations() {
       const { data, error } = await supabase
         .from('conversations')
         .select(
-          'id, created_at, members:conversation_members(user_id, last_read_at, profile:profiles(id,username,name,avatar_url,verified)), messages(id, body, sender_id, created_at)',
+          'id, created_at, members:conversation_members(user_id, last_read_at, profile:profiles(id,username,name,avatar_url,verified)), messages(id, body, sender_id, created_at, attachment)',
         )
       if (error) throw error
       const rows = (data ?? []) as unknown as ConvRow[]
@@ -109,7 +114,9 @@ export function useConversations() {
             id: c.id,
             otherId: other?.user_id ?? '',
             user: authorToUser(other?.profile ?? null, other?.user_id ?? c.id),
-            preview: last ? `${last.sender_id === myId ? 'You: ' : ''}${last.body}` : 'Say hello 👋',
+            preview: last
+              ? `${last.sender_id === myId ? 'You: ' : ''}${last.attachment ? attachmentPreview(last.attachment) : last.body}`
+              : 'Say hello 👋',
             time: last ? relativeTime(last.created_at) : '',
             lastAt: last?.created_at ?? c.created_at,
             unread,
@@ -177,7 +184,7 @@ export function useConversationMessages(conversationId: string | null) {
       const { data, error } = await supabase
         .from('messages')
         .select(
-          'id, body, sender_id, created_at, reply_to, edited_at, parent:reply_to(id, body, sender_id), message_reactions(user_id, emoji)',
+          'id, body, sender_id, created_at, reply_to, edited_at, attachment, parent:reply_to(id, body, sender_id), message_reactions(user_id, emoji)',
         )
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
@@ -237,6 +244,7 @@ export function useConversationMessages(conversationId: string | null) {
                 time: clock(m.created_at),
                 createdAt: m.created_at,
                 editedAt: m.edited_at ?? null,
+                attachment: m.attachment ?? null,
                 reactions: [],
                 parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
               },
@@ -295,18 +303,24 @@ export function useSendMessage() {
       conversationId,
       body,
       replyTo,
+      attachment,
     }: {
       conversationId: string
       body: string
       replyTo?: string | null
+      attachment?: Attachment | null
     }) => {
       if (!supabase || !session) throw new Error('Not signed in')
-      const { error } = await supabase
-        .from('messages')
-        .insert({ conversation_id: conversationId, sender_id: session.user.id, body, reply_to: replyTo ?? null })
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: conversationId,
+        sender_id: session.user.id,
+        body,
+        reply_to: replyTo ?? null,
+        attachment: attachment ?? null,
+      })
       if (error) throw error
     },
-    onMutate: async ({ conversationId, body, replyTo }) => {
+    onMutate: async ({ conversationId, body, replyTo, attachment }) => {
       const key = ['messages', conversationId]
       await qc.cancelQueries({ queryKey: key })
       const prev = qc.getQueryData<DbMessage[]>(key)
@@ -321,6 +335,7 @@ export function useSendMessage() {
           time: clock(now),
           createdAt: now,
           editedAt: null,
+          attachment: attachment ?? null,
           reactions: [],
           parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
         },

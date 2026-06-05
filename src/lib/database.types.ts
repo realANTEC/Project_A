@@ -5,6 +5,7 @@
  */
 
 type Ts = string
+type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 export type Aspect = 'portrait' | 'square' | 'landscape'
 
@@ -149,6 +150,7 @@ export type Database = {
           body: string
           reply_to: string | null
           edited_at: Ts | null
+          attachment: Json | null
           created_at: Ts
         }
         Insert: {
@@ -158,6 +160,7 @@ export type Database = {
           body: string
           reply_to?: string | null
           edited_at?: Ts | null
+          attachment?: Json | null
           created_at?: Ts
         }
         Update: Partial<Database['public']['Tables']['messages']['Insert']>
@@ -175,11 +178,71 @@ export type Database = {
         Update: Partial<Database['public']['Tables']['message_pins']['Insert']>
         Relationships: []
       }
+      polls: {
+        Row: {
+          id: string
+          conversation_id: string
+          created_by: string
+          question: string
+          options: string[]
+          allow_multiple: boolean
+          created_at: Ts
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          created_by: string
+          question: string
+          options: string[]
+          allow_multiple?: boolean
+          created_at?: Ts
+        }
+        Update: Partial<Database['public']['Tables']['polls']['Insert']>
+        Relationships: []
+      }
+      poll_votes: {
+        Row: { poll_id: string; user_id: string; option_index: number; created_at: Ts }
+        Insert: { poll_id: string; user_id: string; option_index: number; created_at?: Ts }
+        Update: Partial<Database['public']['Tables']['poll_votes']['Insert']>
+        Relationships: []
+      }
+      events: {
+        Row: {
+          id: string
+          conversation_id: string
+          created_by: string
+          title: string
+          description: string | null
+          location: string | null
+          starts_at: Ts
+          created_at: Ts
+        }
+        Insert: {
+          id?: string
+          conversation_id: string
+          created_by: string
+          title: string
+          description?: string | null
+          location?: string | null
+          starts_at: Ts
+          created_at?: Ts
+        }
+        Update: Partial<Database['public']['Tables']['events']['Insert']>
+        Relationships: []
+      }
+      event_rsvps: {
+        Row: { event_id: string; user_id: string; status: string; created_at: Ts }
+        Insert: { event_id: string; user_id: string; status: string; created_at?: Ts }
+        Update: Partial<Database['public']['Tables']['event_rsvps']['Insert']>
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: {
       is_member: { Args: { conv: string }; Returns: boolean }
       message_conversation: { Args: { msg: string }; Returns: string }
+      poll_conversation: { Args: { p: string }; Returns: string }
+      event_conversation: { Args: { e: string }; Returns: string }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

@@ -348,3 +348,117 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ---- attachments: media / document / location / contact + polls + events ----
+-- All idempotent / safe to re-run. Static attachments (image, document, location,
+-- contact, and a poll/event reference) ride a jsonb column on the message; rich
+-- state (poll votes, event RSVPs) lives in its own tables.
+alter table public.messages
+  add column if not exists attachment jsonb;
+
+-- Polls -----------------------------------------------------------------------
+create table if not exists public.polls (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  created_by uuid not null references public.profiles (id) on delete cascade,
+  question text not null check (char_length(question) between 1 and 300),
+  options text[] not null check (array_length(options, 1) between 2 and 12),
+  allow_multiple boolean not null default false,
+  created_at timestamptz not null default now()
+);
+alter table public.polls enable row level security;
+
+-- Security-definer lookup of a poll's conversation, so vote policies can member-check
+-- without recursing through the poll's own RLS.
+create or replace function public.poll_conversation(p uuid)
+returns uuid language sql security definer set search_path = public stable as $$
+  select conversation_id from public.polls where id = p;
+$$;
+
+create table if not exists public.poll_votes (
+  poll_id uuid not null references public.polls (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  option_index int not null,
+  created_at timestamptz not null default now(),
+  primary key (poll_id, user_id, option_index)
+);
+alter table public.poll_votes enable row level security;
+-- realtime DELETE (a vote change) must carry poll_id past the RLS/filter.
+alter table public.poll_votes replica identity full;
+
+drop policy if exists "polls_select_member" on public.polls;
+drop policy if exists "polls_insert_member" on public.polls;
+create policy "polls_select_member" on public.polls for select using (public.is_member(conversation_id));
+create policy "polls_insert_member" on public.polls for insert
+  with check (auth.uid() = created_by and public.is_member(conversation_id));
+
+drop policy if exists "poll_votes_select_member" on public.poll_votes;
+drop policy if exists "poll_votes_insert_own" on public.poll_votes;
+drop policy if exists "poll_votes_delete_own" on public.poll_votes;
+create policy "poll_votes_select_member" on public.poll_votes for select
+  using (public.is_member(public.poll_conversation(poll_id)));
+create policy "poll_votes_insert_own" on public.poll_votes for insert
+  with check (auth.uid() = user_id and public.is_member(public.poll_conversation(poll_id)));
+create policy "poll_votes_delete_own" on public.poll_votes for delete
+  using (auth.uid() = user_id);
+
+-- Events ----------------------------------------------------------------------
+create table if not exists public.events (
+  id uuid primary key default gen_random_uuid(),
+  conversation_id uuid not null references public.conversations (id) on delete cascade,
+  created_by uuid not null references public.profiles (id) on delete cascade,
+  title text not null check (char_length(title) between 1 and 200),
+  description text,
+  location text,
+  starts_at timestamptz not null,
+  created_at timestamptz not null default now()
+);
+alter table public.events enable row level security;
+
+create or replace function public.event_conversation(e uuid)
+returns uuid language sql security definer set search_path = public stable as $$
+  select conversation_id from public.events where id = e;
+$$;
+
+create table if not exists public.event_rsvps (
+  event_id uuid not null references public.events (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  status text not null check (status in ('going', 'maybe', 'no')),
+  created_at timestamptz not null default now(),
+  primary key (event_id, user_id)
+);
+alter table public.event_rsvps enable row level security;
+alter table public.event_rsvps replica identity full;
+
+drop policy if exists "events_select_member" on public.events;
+drop policy if exists "events_insert_member" on public.events;
+create policy "events_select_member" on public.events for select using (public.is_member(conversation_id));
+create policy "events_insert_member" on public.events for insert
+  with check (auth.uid() = created_by and public.is_member(conversation_id));
+
+drop policy if exists "event_rsvps_select_member" on public.event_rsvps;
+drop policy if exists "event_rsvps_insert_own" on public.event_rsvps;
+drop policy if exists "event_rsvps_update_own" on public.event_rsvps;
+drop policy if exists "event_rsvps_delete_own" on public.event_rsvps;
+create policy "event_rsvps_select_member" on public.event_rsvps for select
+  using (public.is_member(public.event_conversation(event_id)));
+create policy "event_rsvps_insert_own" on public.event_rsvps for insert
+  with check (auth.uid() = user_id and public.is_member(public.event_conversation(event_id)));
+create policy "event_rsvps_update_own" on public.event_rsvps for update
+  using (auth.uid() = user_id);
+create policy "event_rsvps_delete_own" on public.event_rsvps for delete
+  using (auth.uid() = user_id);
+
+-- Realtime for live tallies / RSVPs (the poll/event rows themselves arrive as a message).
+do $$
+declare t text;
+begin
+  foreach t in array array['poll_votes', 'event_rsvps'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

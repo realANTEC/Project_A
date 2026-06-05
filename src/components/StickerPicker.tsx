@@ -23,7 +23,7 @@ export function StickerPicker({ onPick, onClose }: { onPick: (url: string) => vo
   })
 
   return (
-    <div className="glass edge-light mx-2 mb-1 flex h-60 flex-col gap-2 rounded-2xl p-2">
+    <div className="glass-strong edge-light mx-2 mb-1 flex h-60 flex-col gap-2 rounded-2xl p-2">
       <div className="flex items-center gap-2">
         <div className="glass-inset flex min-w-0 flex-1 items-center gap-2 rounded-full px-3 py-1.5">
           <Search className="h-4 w-4 shrink-0 text-white/55" />

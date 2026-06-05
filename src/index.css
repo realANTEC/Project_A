@@ -141,6 +141,19 @@
     box-shadow: var(--shadow-glass);
   }
 
+  /* Opaque frosted glass for floating menus / sheets that sit OVER busy chat content
+     (action menu, attachment sheet, pickers). High opacity so images + text behind don't
+     bleed through and read as overlapping layers; keeps the blur + sheen so it's still glass. */
+  .glass-strong {
+    position: relative;
+    background-color: rgba(16, 17, 33, 0.94);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.015));
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-glass);
+  }
+
   /* Subtler nested glass (inputs, chips, inner panels) */
   .glass-inset {
     background-color: rgba(2, 3, 10, 0.22);

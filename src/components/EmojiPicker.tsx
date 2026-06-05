@@ -58,7 +58,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
     <div
       role="menu"
       aria-label="Emoji picker"
-      className="glass edge-light grid w-64 grid-cols-8 gap-0.5 rounded-2xl p-2"
+      className="glass-strong edge-light grid w-64 grid-cols-8 gap-0.5 rounded-2xl p-2"
     >
       {EMOJIS.map((emoji) => (
         <button

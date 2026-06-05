@@ -15,6 +15,7 @@ import {
   Pencil,
   Phone,
   Pin,
+  Plus,
   Search,
   Send,
   SmilePlus,
@@ -43,6 +44,7 @@ import {
   useUnsendMessage,
 } from '@/lib/messages'
 import { useHiddenMessages } from '@/lib/hiddenMessages'
+import { type Attachment, attachmentPreview, uploadDocumentAttachment, uploadImageAttachment } from '@/lib/attachments'
 import { isJumboEmoji } from '@/lib/emoji'
 import { isGiphyConfigured, stickerUrlOf } from '@/lib/giphy'
 import { useOnline } from '@/lib/presence'
@@ -57,6 +59,9 @@ import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
 import { MessageActionsMenu } from '@/components/MessageActionsMenu'
+import { AttachmentMenu } from '@/components/AttachmentMenu'
+import { AttachmentCard } from '@/components/AttachmentCard'
+import { ContactPicker } from '@/components/ContactPicker'
 import { StickerPicker } from '@/components/StickerPicker'
 import { ComposerEmojiButton } from '@/components/ComposerEmojiButton'
 
@@ -117,8 +122,9 @@ function MessageRow({
   }
 
   const reactions = groupReactions(message.reactions, myId)
+  const att = message.attachment
   const isSticker = !!stickerUrlOf(message.text)
-  const bareBubble = isSticker || isJumboEmoji(message.text)
+  const bareBubble = isSticker || isJumboEmoji(message.text) || !!att
 
   return (
     <div
@@ -167,23 +173,29 @@ function MessageRow({
               <span className="line-clamp-1 text-[11px] text-white/60">{message.parent.text}</span>
             </button>
           )}
-          <MessageBody text={message.text} fromMe={message.fromMe} />
-          {/* Show "Edited" even when the result is a bare jumbo emoji (Edit is hidden on
-              stickers, so a bare bubble carrying editedAt is always an emoji-only edit). */}
-          {message.editedAt && (
-            <span
-              title={`Edited ${new Date(message.editedAt).toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}`}
-              className={cn(
-                'mt-0.5 block text-[10px] leading-none',
-                bareBubble && 'px-1',
-                message.fromMe ? 'text-right text-white/60' : 'text-white/45',
+          {att ? (
+            <AttachmentCard attachment={att} />
+          ) : (
+            <>
+              <MessageBody text={message.text} fromMe={message.fromMe} />
+              {/* Show "Edited" even when the result is a bare jumbo emoji (Edit is hidden on
+                  stickers, so a bare bubble carrying editedAt is always an emoji-only edit). */}
+              {message.editedAt && (
+                <span
+                  title={`Edited ${new Date(message.editedAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}`}
+                  className={cn(
+                    'mt-0.5 block text-[10px] leading-none',
+                    bareBubble && 'px-1',
+                    message.fromMe ? 'text-right text-white/60' : 'text-white/45',
+                  )}
+                >
+                  Edited
+                </span>
               )}
-            >
-              Edited
-            </span>
+            </>
           )}
         </div>
 
@@ -269,7 +281,44 @@ function Thread({
   const [editing, setEditing] = useState<DbMessage | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [showStickers, setShowStickers] = useState(false)
+  const [showAttach, setShowAttach] = useState(false)
+  const [showContact, setShowContact] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const galleryInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  const documentInput = useRef<HTMLInputElement>(null)
+
+  // Upload a picked file to Storage, then send it as an attachment message.
+  async function onPickFile(file: File | undefined, kind: 'image' | 'document') {
+    if (!file || !myId) return
+    toast('Uploading…')
+    try {
+      const att =
+        kind === 'document'
+          ? await uploadDocumentAttachment(file, myId)
+          : await uploadImageAttachment(file, myId)
+      send.mutate({ conversationId: conversation.id, body: attachmentPreview(att), attachment: att })
+    } catch {
+      toast('Couldn’t send attachment')
+    }
+  }
+
+  // Share the device's current location via the Geolocation API.
+  function shareLocation() {
+    if (!navigator.geolocation) {
+      toast('Location not available')
+      return
+    }
+    toast('Getting location…')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const att: Attachment = { type: 'location', lat: pos.coords.latitude, lng: pos.coords.longitude }
+        send.mutate({ conversationId: conversation.id, body: attachmentPreview(att), attachment: att })
+      },
+      () => toast('Couldn’t get location'),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
 
   // Scroll to a quoted message and flash it (event-driven setState; not an effect).
   const jumpTo = (id: string) => {
@@ -439,6 +488,25 @@ function Thread({
         />
       )}
 
+      {showAttach && (
+        <AttachmentMenu
+          onClose={() => setShowAttach(false)}
+          onGallery={() => galleryInput.current?.click()}
+          onCamera={() => cameraInput.current?.click()}
+          onLocation={shareLocation}
+          onContact={() => setShowContact(true)}
+          onDocument={() => documentInput.current?.click()}
+        />
+      )}
+      {showContact && (
+        <ContactPicker
+          onClose={() => setShowContact(false)}
+          onPick={(att) =>
+            send.mutate({ conversationId: conversation.id, body: attachmentPreview(att), attachment: att })
+          }
+        />
+      )}
+
       {(editing || replyTo) && (
         <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 pb-1 pt-2.5">
           <div className="min-w-0 flex-1 rounded-lg border-l-2 border-white/30 bg-white/[0.04] px-2.5 py-1.5">
@@ -472,6 +540,44 @@ function Thread({
           !replyTo && !editing && 'border-t border-white/[0.07]',
         )}
       >
+        <button
+          type="button"
+          onClick={() => setShowAttach(true)}
+          aria-label="Attach"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+        >
+          <Plus className="h-[22px] w-[22px]" />
+        </button>
+        <input
+          ref={galleryInput}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            onPickFile(e.target.files?.[0], 'image')
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={cameraInput}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          hidden
+          onChange={(e) => {
+            onPickFile(e.target.files?.[0], 'image')
+            e.target.value = ''
+          }}
+        />
+        <input
+          ref={documentInput}
+          type="file"
+          hidden
+          onChange={(e) => {
+            onPickFile(e.target.files?.[0], 'document')
+            e.target.value = ''
+          }}
+        />
         {isGiphyConfigured && (
           <button
             type="button"
@@ -519,7 +625,10 @@ function Thread({
             requestAnimationFrame(() => inputRef.current?.focus())
           }}
           onEdit={
-            menuMessage.fromMe && !menuMessage.id.startsWith('temp-') && !stickerUrlOf(menuMessage.text)
+            menuMessage.fromMe &&
+            !menuMessage.id.startsWith('temp-') &&
+            !stickerUrlOf(menuMessage.text) &&
+            !menuMessage.attachment
               ? () => {
                   setReplyTo(null)
                   setShowStickers(false)

@@ -101,7 +101,7 @@ export function MessageActionsMenu({
       style={{ top: 0, left: 0, visibility: 'hidden' }}
     >
       {/* Quick-reaction bar */}
-      <div className="glass edge-light flex items-center gap-0.5 self-start rounded-full px-1.5 py-1">
+      <div className="glass-strong edge-light flex items-center gap-0.5 self-start rounded-full px-1.5 py-1">
         {MESSAGE_REACTIONS.map((emoji) => (
           <button
             key={emoji}
@@ -133,7 +133,7 @@ export function MessageActionsMenu({
       {showPicker && <EmojiPicker onPick={(emoji) => react(emoji)} />}
 
       {/* Action list (grows as later phases add Pin / Delete / Unsend) */}
-      <div className="glass edge-light flex flex-col rounded-2xl p-1.5 text-sm">
+      <div className="glass-strong edge-light flex flex-col rounded-2xl p-1.5 text-sm">
         {onReply && (
           <button
             type="button"
