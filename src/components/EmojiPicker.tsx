@@ -1,3 +1,5 @@
+import { StaticEmoji } from './StaticEmoji'
+
 // A small curated set — enough to be useful without pulling in a heavy emoji library.
 const EMOJIS = [
   '😀',
@@ -65,7 +67,7 @@ export function EmojiPicker({ onPick }: { onPick: (emoji: string) => void }) {
           onClick={() => onPick(emoji)}
           className="grid h-7 w-7 place-items-center rounded-lg text-lg leading-none transition hover:bg-white/10"
         >
-          {emoji}
+          <StaticEmoji emoji={emoji} />
         </button>
       ))}
     </div>

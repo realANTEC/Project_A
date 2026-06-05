@@ -52,6 +52,7 @@ import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/cn'
 import { Page } from '@/components/Page'
 import { AnimatedEmoji } from '@/components/AnimatedEmoji'
+import { EmojiText } from '@/components/EmojiText'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
@@ -716,7 +717,7 @@ function RealMessages() {
                       c.unread > 0 ? 'font-semibold text-white/85' : 'text-white/55',
                     )}
                   >
-                    {c.preview}
+                    <EmojiText text={c.preview} />
                   </p>
                 </div>
                 {c.unread > 0 && (
@@ -817,7 +818,7 @@ function MockMessages() {
                       c.unread ? 'font-semibold text-white/85' : 'text-white/55',
                     )}
                   >
-                    {c.preview}
+                    <EmojiText text={c.preview} />
                   </p>
                 </div>
                 {c.unread ? (

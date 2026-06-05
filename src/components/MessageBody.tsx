@@ -7,6 +7,7 @@ import { stickerUrlOf } from '@/lib/giphy'
 import { usePostById } from '@/lib/posts'
 import { usePostModal } from '@/lib/post-modal'
 import { AnimatedEmoji } from './AnimatedEmoji'
+import { EmojiText } from './EmojiText'
 
 // Fresh regex per call (a shared /g regex carries lastIndex state between uses).
 const urlRe = () => /(https?:\/\/[^\s]+)/g
@@ -16,7 +17,8 @@ function postIdOf(url: string): string | null {
   return url.match(/^https?:\/\/[^/]+\/p\/([\w-]+)/)?.[1] ?? null
 }
 
-/** Render text with clickable links; in-app links (same origin) use the router (no reload). */
+/** Render text with clickable links + inline (static) emoji; in-app links (same origin)
+ *  use the router (no reload). Emoji rendering lives in EmojiText (shared with comments). */
 function Linkified({ text, linkClass }: { text: string; linkClass: string }) {
   const out: ReactNode[] = []
   let last = 0
@@ -24,23 +26,23 @@ function Linkified({ text, linkClass }: { text: string; linkClass: string }) {
   for (const match of text.matchAll(urlRe())) {
     const url = match[0]
     const start = match.index ?? 0
-    if (start > last) out.push(text.slice(last, start))
+    if (start > last) out.push(<EmojiText key={`t${i}`} text={text.slice(last, start)} />)
     if (url.startsWith(window.location.origin)) {
       out.push(
-        <Link key={i++} to={url.slice(window.location.origin.length) || '/'} className={linkClass}>
+        <Link key={`l${i++}`} to={url.slice(window.location.origin.length) || '/'} className={linkClass}>
           {url}
         </Link>,
       )
     } else {
       out.push(
-        <a key={i++} href={url} target="_blank" rel="noreferrer" className={linkClass}>
+        <a key={`l${i++}`} href={url} target="_blank" rel="noreferrer" className={linkClass}>
           {url}
         </a>,
       )
     }
     last = start + url.length
   }
-  if (last < text.length) out.push(text.slice(last))
+  if (last < text.length) out.push(<EmojiText key={`t${i}`} text={text.slice(last)} />)
   return <>{out}</>
 }
 

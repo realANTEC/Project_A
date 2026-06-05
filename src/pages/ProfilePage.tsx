@@ -19,6 +19,7 @@ import { usePostModal } from '@/lib/post-modal'
 import { useSearch } from '@/lib/search'
 import { useCompose } from '@/lib/compose'
 import { useToast } from '@/lib/toast'
+import { EmojiText } from '@/components/EmojiText'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
@@ -171,7 +172,7 @@ function ProfileView({
 
             {bio && (
               <p className="mt-4 whitespace-pre-line text-center text-sm leading-relaxed text-white/80 sm:text-left">
-                {bio}
+                <EmojiText text={bio} />
               </p>
             )}
             {website && (

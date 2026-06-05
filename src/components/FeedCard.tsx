@@ -12,6 +12,7 @@ import { sharePost } from '@/lib/share'
 import { useToast } from '@/lib/toast'
 import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
+import { EmojiText } from './EmojiText'
 import { PostMedia } from './PostMedia'
 import { PostMenu } from './PostMenu'
 import { useSharePost } from './SharePostModal'
@@ -201,7 +202,8 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
       {/* caption */}
       <div className="px-4 pt-2 sm:px-5">
         <p className="text-[0.9rem] leading-relaxed text-white/85">
-          <span className="font-semibold text-white">{post.author.handle}</span> {post.caption}
+          <span className="font-semibold text-white">{post.author.handle}</span>{' '}
+          <EmojiText text={post.caption} />
         </p>
         {post.tags.length > 0 && (
           <p className="mt-1.5 flex flex-wrap gap-x-2 text-[0.9rem] font-medium text-lilac">

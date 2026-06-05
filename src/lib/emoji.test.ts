@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { emojiGraphemes, emojiOnlyCount, isJumboEmoji, notoEmojiUrl } from './emoji'
+import { emojiGraphemes, emojiOnlyCount, isJumboEmoji, notoEmojiUrl, notoStaticUrl, splitEmoji } from './emoji'
 
 describe('emojiOnlyCount / isJumboEmoji', () => {
   it('counts a short emoji-only message (spaces allowed)', () => {
@@ -33,5 +33,13 @@ describe('emojiOnlyCount / isJumboEmoji', () => {
   it('builds the Noto animated-emoji URL from codepoints', () => {
     expect(notoEmojiUrl('😂')).toBe('https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/512.webp')
     expect(notoEmojiUrl('❤️')).toBe('https://fonts.gstatic.com/s/e/notoemoji/latest/2764_fe0f/512.webp')
+    expect(notoStaticUrl('😂')).toBe('https://fonts.gstatic.com/s/e/notoemoji/latest/1f602/emoji.svg')
+  })
+
+  it('splits mixed text into text runs and individual emoji', () => {
+    expect(splitEmoji('hi 🤔😌')).toEqual([{ text: 'hi ' }, { emoji: '🤔' }, { emoji: '😌' }])
+    expect(splitEmoji('no emoji here')).toEqual([{ text: 'no emoji here' }])
+    expect(splitEmoji('👍🏽 done')).toEqual([{ emoji: '👍🏽' }, { text: ' done' }])
+    expect(splitEmoji('')).toEqual([])
   })
 })

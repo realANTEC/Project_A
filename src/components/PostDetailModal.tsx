@@ -14,6 +14,7 @@ import { Avatar } from './Avatar'
 import { VerifiedBadge } from './VerifiedBadge'
 import { PostMenu } from './PostMenu'
 import { EmojiPicker } from './EmojiPicker'
+import { EmojiText } from './EmojiText'
 import { useSharePost } from './SharePostModal'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
@@ -68,7 +69,8 @@ function CommentItem({
       <Avatar src={resolveAvatar(comment.user)} alt={comment.user.name} size={isReply ? 26 : 32} />
       <div className="min-w-0 flex-1">
         <p className="text-sm leading-relaxed text-white/85">
-          <span className="font-semibold text-white">{comment.user.handle}</span> {comment.text}
+          <span className="font-semibold text-white">{comment.user.handle}</span>{' '}
+          <EmojiText text={comment.text} />
         </p>
         <div className="mt-0.5 flex items-center gap-3 text-[11px] text-white/55">
           <span>{formatCount(comment.likes)} likes</span>
@@ -217,7 +219,8 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
           <div className="flex gap-3">
             <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={32} />
             <p className="text-sm leading-relaxed text-white/85">
-              <span className="font-semibold text-white">{post.author.handle}</span> {post.caption}
+              <span className="font-semibold text-white">{post.author.handle}</span>{' '}
+              <EmojiText text={post.caption} />
               {post.tags.length > 0 && (
                 <span className="ml-1 font-medium text-lilac">{post.tags.map((t) => `#${t}`).join(' ')}</span>
               )}
