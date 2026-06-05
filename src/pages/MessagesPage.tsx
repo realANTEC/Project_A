@@ -45,6 +45,7 @@ import {
 } from '@/lib/messages'
 import { useHiddenMessages } from '@/lib/hiddenMessages'
 import { type Attachment, attachmentPreview, uploadDocumentAttachment, uploadImageAttachment } from '@/lib/attachments'
+import { useCreatePoll } from '@/lib/polls'
 import { isJumboEmoji } from '@/lib/emoji'
 import { isGiphyConfigured, stickerUrlOf } from '@/lib/giphy'
 import { useOnline } from '@/lib/presence'
@@ -62,6 +63,7 @@ import { MessageActionsMenu } from '@/components/MessageActionsMenu'
 import { AttachmentMenu } from '@/components/AttachmentMenu'
 import { AttachmentCard } from '@/components/AttachmentCard'
 import { ContactPicker } from '@/components/ContactPicker'
+import { PollComposer } from '@/components/PollComposer'
 import { StickerPicker } from '@/components/StickerPicker'
 import { ComposerEmojiButton } from '@/components/ComposerEmojiButton'
 
@@ -135,7 +137,7 @@ function MessageRow({
         highlighted && 'bg-white/[0.07]',
       )}
     >
-      <div className="relative max-w-[75%]">
+      <div className={cn('relative', att ? 'max-w-[85%]' : 'max-w-[75%]')}>
         <div
           ref={bubbleRef}
           onContextMenu={(e) => {
@@ -260,6 +262,7 @@ function Thread({
 }) {
   const { data: messages = [] } = useConversationMessages(conversation.id)
   const send = useSendMessage()
+  const createPoll = useCreatePoll()
   const { theyTyping, notifyTyping } = useTyping(conversation.id)
   const { mutate: markRead } = useMarkRead()
   const { startCall } = useCall()
@@ -283,6 +286,7 @@ function Thread({
   const [showStickers, setShowStickers] = useState(false)
   const [showAttach, setShowAttach] = useState(false)
   const [showContact, setShowContact] = useState(false)
+  const [showPoll, setShowPoll] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const galleryInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
@@ -496,6 +500,7 @@ function Thread({
           onLocation={shareLocation}
           onContact={() => setShowContact(true)}
           onDocument={() => documentInput.current?.click()}
+          onPoll={() => setShowPoll(true)}
         />
       )}
       {showContact && (
@@ -504,6 +509,29 @@ function Thread({
           onPick={(att) =>
             send.mutate({ conversationId: conversation.id, body: attachmentPreview(att), attachment: att })
           }
+        />
+      )}
+      {showPoll && (
+        <PollComposer
+          onClose={() => setShowPoll(false)}
+          onCreate={async ({ question, options, allowMultiple }) => {
+            setShowPoll(false)
+            try {
+              const pollId = await createPoll.mutateAsync({
+                conversationId: conversation.id,
+                question,
+                options,
+                allowMultiple,
+              })
+              send.mutate({
+                conversationId: conversation.id,
+                body: `📊 ${question}`,
+                attachment: { type: 'poll', id: pollId },
+              })
+            } catch {
+              toast('Couldn’t create poll')
+            }
+          }}
         />
       )}
 

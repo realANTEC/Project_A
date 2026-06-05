@@ -3,8 +3,9 @@ import { ImageAttachment } from './ImageAttachment'
 import { DocumentAttachment } from './DocumentAttachment'
 import { LocationAttachment } from './LocationAttachment'
 import { ContactAttachment } from './ContactAttachment'
+import { PollAttachment } from './PollAttachment'
 
-/** Renders a message's rich attachment as the right card. (Poll/event land in later phases.) */
+/** Renders a message's rich attachment as the right card. (Event lands in the next phase.) */
 export function AttachmentCard({ attachment }: { attachment: Attachment }) {
   switch (attachment.type) {
     case 'image':
@@ -15,6 +16,8 @@ export function AttachmentCard({ attachment }: { attachment: Attachment }) {
       return <LocationAttachment lat={attachment.lat} lng={attachment.lng} label={attachment.label} />
     case 'contact':
       return <ContactAttachment name={attachment.name} handle={attachment.handle} avatar={attachment.avatar} />
+    case 'poll':
+      return <PollAttachment pollId={attachment.id} />
     default:
       return null
   }
