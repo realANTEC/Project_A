@@ -12,6 +12,7 @@ import {
   ArrowLeft,
   Check,
   Info,
+  Mic,
   Pencil,
   Phone,
   Pin,
@@ -44,7 +45,14 @@ import {
   useUnsendMessage,
 } from '@/lib/messages'
 import { useHiddenMessages } from '@/lib/hiddenMessages'
-import { type Attachment, attachmentPreview, uploadDocumentAttachment, uploadImageAttachment } from '@/lib/attachments'
+import {
+  type Attachment,
+  attachmentPreview,
+  uploadDocumentAttachment,
+  uploadImageAttachment,
+  uploadVoiceAttachment,
+} from '@/lib/attachments'
+import { useVoiceRecorder } from '@/lib/useVoiceRecorder'
 import { useCreatePoll } from '@/lib/polls'
 import { useCreateEvent } from '@/lib/events'
 import { isJumboEmoji } from '@/lib/emoji'
@@ -64,6 +72,7 @@ import { sharedPostIdOf } from '@/lib/postLinks'
 import { MessageActionsMenu } from '@/components/MessageActionsMenu'
 import { AttachmentMenu } from '@/components/AttachmentMenu'
 import { AttachmentCard } from '@/components/AttachmentCard'
+import { VoiceRecorderBar } from '@/components/VoiceRecorderBar'
 import { ContactPicker } from '@/components/ContactPicker'
 import { PollComposer } from '@/components/PollComposer'
 import { EventComposer } from '@/components/EventComposer'
@@ -122,7 +131,10 @@ function MessageRow({
     pressTimer.current = window.setTimeout(open, 450)
   }
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (pressStart.current && Math.hypot(e.clientX - pressStart.current.x, e.clientY - pressStart.current.y) > 10)
+    if (
+      pressStart.current &&
+      Math.hypot(e.clientX - pressStart.current.x, e.clientY - pressStart.current.y) > 10
+    )
       cancelPress()
   }
 
@@ -185,7 +197,7 @@ function MessageRow({
             </button>
           )}
           {att ? (
-            <AttachmentCard attachment={att} />
+            <AttachmentCard attachment={att} fromMe={message.fromMe} />
           ) : (
             <>
               <MessageBody text={message.text} fromMe={message.fromMe} />
@@ -268,6 +280,7 @@ function Thread({
 }) {
   const { data: messages = [] } = useConversationMessages(conversation.id)
   const send = useSendMessage()
+  const recorder = useVoiceRecorder()
   const createPoll = useCreatePoll()
   const createEvent = useCreateEvent()
   const { theyTyping, notifyTyping } = useTyping(conversation.id)
@@ -315,6 +328,29 @@ function Thread({
     }
   }
 
+  // Start a voice note (asks for mic permission). Toasts if mic access is denied/unavailable.
+  async function startRecording() {
+    const ok = await recorder.start()
+    if (!ok) toast('Microphone access is needed for voice messages')
+  }
+
+  // Stop, upload the audio to Storage, and send it as a voice attachment.
+  async function sendRecording() {
+    const rec = await recorder.stop()
+    if (!rec || !myId) return
+    if (rec.durationMs < 800) {
+      toast('Hold a moment longer for a voice message')
+      return
+    }
+    toast('Sending voice message…')
+    try {
+      const att = await uploadVoiceAttachment(rec.blob, rec.durationMs, myId)
+      send.mutate({ conversationId: conversation.id, body: attachmentPreview(att), attachment: att })
+    } catch {
+      toast('Couldn’t send voice message')
+    }
+  }
+
   // Share the device's current location via the Geolocation API.
   function shareLocation() {
     if (!navigator.geolocation) {
@@ -356,9 +392,7 @@ function Thread({
   const visible = messages.filter((m) => !hidden.has(m.id))
   // Resolve pins from `visible`, not `messages`, so a message you deleted-for-you doesn't
   // reappear in YOUR pinned banner (even if the other person pinned it).
-  const pinnedMessages = pins
-    .map((id) => visible.find((m) => m.id === id))
-    .filter((m): m is DbMessage => !!m)
+  const pinnedMessages = pins.map((id) => visible.find((m) => m.id === id)).filter((m): m is DbMessage => !!m)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -594,85 +628,111 @@ function Thread({
         </div>
       )}
 
-      <form
-        onSubmit={submit}
-        className={cn(
-          'flex items-center gap-2 px-4 py-3',
-          !replyTo && !editing && 'border-t border-white/[0.07]',
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => setShowAttach(true)}
-          aria-label="Attach"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
+      {recorder.status !== 'idle' ? (
+        <div className={cn('px-4 py-3', !replyTo && !editing && 'border-t border-white/[0.07]')}>
+          <VoiceRecorderBar
+            status={recorder.status}
+            durationMs={recorder.durationMs}
+            levels={recorder.levels}
+            getPreviewBlob={recorder.getPreviewBlob}
+            onPause={recorder.pause}
+            onResume={recorder.resume}
+            onCancel={recorder.cancel}
+            onSend={sendRecording}
+          />
+        </div>
+      ) : (
+        <form
+          onSubmit={submit}
+          className={cn(
+            'flex items-center gap-2 px-4 py-3',
+            !replyTo && !editing && 'border-t border-white/[0.07]',
+          )}
         >
-          <Plus className="h-[22px] w-[22px]" />
-        </button>
-        <input
-          ref={galleryInput}
-          type="file"
-          accept="image/*"
-          hidden
-          onChange={(e) => {
-            onPickFile(e.target.files?.[0], 'image')
-            e.target.value = ''
-          }}
-        />
-        <input
-          ref={cameraInput}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          hidden
-          onChange={(e) => {
-            onPickFile(e.target.files?.[0], 'image')
-            e.target.value = ''
-          }}
-        />
-        <input
-          ref={documentInput}
-          type="file"
-          hidden
-          onChange={(e) => {
-            onPickFile(e.target.files?.[0], 'document')
-            e.target.value = ''
-          }}
-        />
-        {isGiphyConfigured && (
           <button
             type="button"
-            onClick={() => setShowStickers((v) => !v)}
-            aria-label="Stickers"
-            className={cn(
-              'grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white',
-              showStickers && 'bg-white/10 text-white',
-            )}
+            onClick={() => setShowAttach(true)}
+            aria-label="Attach"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
           >
-            <Sticker className="h-[22px] w-[22px]" />
+            <Plus className="h-[22px] w-[22px]" />
           </button>
-        )}
-        <ComposerEmojiButton onPick={insertEmoji} />
-        <input
-          ref={inputRef}
-          value={draft}
-          onChange={(e) => {
-            setDraft(e.target.value)
-            if (!editing) notifyTyping()
-          }}
-          placeholder={editing ? 'Edit message…' : 'Message…'}
-          aria-label={editing ? 'Edit message' : 'Message'}
-          className="glass-inset min-w-0 flex-1 rounded-full px-4 py-2.5 text-sm text-white placeholder:text-white/55 focus:outline-none"
-        />
-        <button
-          type="submit"
-          disabled={!draft.trim() || (!!editing && draft.trim() === editing.text)}
-          aria-label={editing ? 'Save edit' : 'Send'}
-          className="bg-aurora grid h-10 w-10 shrink-0 place-items-center rounded-full text-white shadow-[var(--shadow-glow-violet)] transition active:scale-95 disabled:opacity-40"
-        >
-          {editing ? <Check className="h-5 w-5" /> : <Send className="h-5 w-5" />}
-        </button>
-      </form>
+          <input
+            ref={galleryInput}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => {
+              onPickFile(e.target.files?.[0], 'image')
+              e.target.value = ''
+            }}
+          />
+          <input
+            ref={cameraInput}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            hidden
+            onChange={(e) => {
+              onPickFile(e.target.files?.[0], 'image')
+              e.target.value = ''
+            }}
+          />
+          <input
+            ref={documentInput}
+            type="file"
+            hidden
+            onChange={(e) => {
+              onPickFile(e.target.files?.[0], 'document')
+              e.target.value = ''
+            }}
+          />
+          {isGiphyConfigured && (
+            <button
+              type="button"
+              onClick={() => setShowStickers((v) => !v)}
+              aria-label="Stickers"
+              className={cn(
+                'grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white',
+                showStickers && 'bg-white/10 text-white',
+              )}
+            >
+              <Sticker className="h-[22px] w-[22px]" />
+            </button>
+          )}
+          <ComposerEmojiButton onPick={insertEmoji} />
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => {
+              setDraft(e.target.value)
+              if (!editing) notifyTyping()
+            }}
+            placeholder={editing ? 'Edit message…' : 'Message…'}
+            aria-label={editing ? 'Edit message' : 'Message'}
+            className="glass-inset min-w-0 flex-1 rounded-full px-4 py-2.5 text-sm text-white placeholder:text-white/55 focus:outline-none"
+          />
+          {draft.trim() || editing ? (
+            <button
+              type="submit"
+              disabled={!draft.trim() || (!!editing && draft.trim() === editing.text)}
+              aria-label={editing ? 'Save edit' : 'Send'}
+              className="bg-aurora grid h-10 w-10 shrink-0 place-items-center rounded-full text-white shadow-[var(--shadow-glow-violet)] transition active:scale-95 disabled:opacity-40"
+            >
+              {editing ? <Check className="h-5 w-5" /> : <Send className="h-5 w-5" />}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={startRecording}
+              aria-label="Record voice message"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              <Mic className="h-[22px] w-[22px]" />
+            </button>
+          )}
+        </form>
+      )}
 
       {menu && menuMessage && (
         <MessageActionsMenu
@@ -1002,7 +1062,9 @@ function MockMessages() {
         </div>
 
         {/* Active thread */}
-        <div className={cn('w-full min-w-0 flex-col md:flex md:flex-1', mobileThreadOpen ? 'flex' : 'hidden')}>
+        <div
+          className={cn('w-full min-w-0 flex-col md:flex md:flex-1', mobileThreadOpen ? 'flex' : 'hidden')}
+        >
           <div className="flex items-center gap-3 border-b border-white/[0.07] px-4 py-3">
             <button
               type="button"

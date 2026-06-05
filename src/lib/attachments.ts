@@ -8,6 +8,7 @@ import { downscaleImage } from './image'
 export type Attachment =
   | { type: 'image'; url: string }
   | { type: 'document'; url: string; name: string; size?: number; mime?: string }
+  | { type: 'voice'; url: string; durationMs: number; mime?: string }
   | { type: 'location'; lat: number; lng: number; label?: string }
   | { type: 'contact'; userId: string; name: string; handle: string; avatar?: string }
   | { type: 'poll'; id: string }
@@ -22,6 +23,8 @@ export function attachmentPreview(a: Attachment): string {
       return '📷 Photo'
     case 'document':
       return `📄 ${a.name}`
+    case 'voice':
+      return '🎤 Voice message'
     case 'location':
       return '📍 Location'
     case 'contact':
@@ -31,6 +34,14 @@ export function attachmentPreview(a: Attachment): string {
     case 'event':
       return '📅 Event'
   }
+}
+
+/** Clock-style m:ss from a millisecond duration (for voice notes). */
+export function formatDuration(ms: number): string {
+  const total = Math.max(0, Math.round(ms / 1000))
+  const m = Math.floor(total / 60)
+  const s = total % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 /** Human-readable file size (e.g. "2.4 MB"). */
@@ -68,4 +79,15 @@ export async function uploadDocumentAttachment(file: File, userId: string): Prom
   const ext = (file.name.split('.').pop() || 'bin').toLowerCase().replace(/[^a-z0-9]/g, '')
   const url = await uploadToMedia(file, userId, ext || 'bin')
   return { type: 'document', url, name: file.name, size: file.size, mime: file.type }
+}
+
+/** Upload a recorded voice note blob → a voice attachment (carries its duration). */
+export async function uploadVoiceAttachment(
+  blob: Blob,
+  durationMs: number,
+  userId: string,
+): Promise<Attachment> {
+  const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const url = await uploadToMedia(blob, userId, ext)
+  return { type: 'voice', url, durationMs: Math.round(durationMs), mime: blob.type || undefined }
 }
