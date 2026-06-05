@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/cn'
+import { stickerUrlOf } from '@/lib/giphy'
 import { usePostById } from '@/lib/posts'
 import { usePostModal } from '@/lib/post-modal'
 
@@ -69,6 +70,10 @@ function SharedPostCard({ postId }: { postId: string }) {
 /** Chat message content: long links wrap, URLs are clickable, and a shared Soul post
  *  renders as a preview card (its bare /p/:id link is replaced by the card). */
 export function MessageBody({ text, fromMe }: { text: string; fromMe: boolean }) {
+  // A message that is just a GIPHY sticker URL renders as the sticker image.
+  const sticker = stickerUrlOf(text)
+  if (sticker) return <img src={sticker} alt="Sticker" loading="lazy" className="max-h-40 w-auto max-w-full" />
+
   const urls = [...text.matchAll(urlRe())].map((m) => m[0])
   const postUrl = urls.find((u) => postIdOf(u) !== null) ?? null
   const postId = postUrl ? postIdOf(postUrl) : null

@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Info, Pencil, Phone, Pin, Search, Send, SmilePlus, Video, X } from 'lucide-react'
+import { ArrowLeft, Info, Pencil, Phone, Pin, Search, Send, SmilePlus, Sticker, Video, X } from 'lucide-react'
 import { avatar, resolveAvatar } from '@/data/feed'
 import { conversations as mockConversations } from '@/data/messages'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -29,6 +29,7 @@ import {
   useUnsendMessage,
 } from '@/lib/messages'
 import { useHiddenMessages } from '@/lib/hiddenMessages'
+import { isGiphyConfigured, stickerUrlOf } from '@/lib/giphy'
 import { useOnline } from '@/lib/presence'
 import { useCall } from '@/lib/calls'
 import { useAuth } from '@/lib/auth'
@@ -39,6 +40,7 @@ import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
 import { MessageActionsMenu } from '@/components/MessageActionsMenu'
+import { StickerPicker } from '@/components/StickerPicker'
 
 export function MessagesPage() {
   return isSupabaseConfigured ? <RealMessages /> : <MockMessages />
@@ -97,6 +99,7 @@ function MessageRow({
   }
 
   const reactions = groupReactions(message.reactions, myId)
+  const isSticker = !!stickerUrlOf(message.text)
 
   return (
     <div
@@ -119,10 +122,15 @@ function MessageRow({
           onPointerMove={onPointerMove}
           onPointerCancel={cancelPress}
           className={cn(
-            'select-none break-words px-4 py-2.5 text-sm leading-relaxed',
-            message.fromMe
-              ? 'bg-aurora rounded-2xl rounded-br-md text-white'
-              : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
+            'select-none break-words leading-relaxed',
+            isSticker
+              ? 'rounded-2xl' // a sticker shows on its own — no bubble background or padding
+              : cn(
+                  'px-4 py-2.5 text-sm',
+                  message.fromMe
+                    ? 'bg-aurora rounded-2xl rounded-br-md text-white'
+                    : 'glass-inset rounded-2xl rounded-bl-md text-white/90',
+                ),
           )}
         >
           {message.parent && (
@@ -216,6 +224,7 @@ function Thread({
   const menuMessage = menu ? (messages.find((m) => m.id === menu.id) ?? null) : null
   const [replyTo, setReplyTo] = useState<DbMessage | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
+  const [showStickers, setShowStickers] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Scroll to a quoted message and flash it (event-driven setState; not an effect).
@@ -352,6 +361,16 @@ function Thread({
         )}
       </div>
 
+      {showStickers && isGiphyConfigured && (
+        <StickerPicker
+          onPick={(url) => {
+            send.mutate({ conversationId: conversation.id, body: url })
+            setShowStickers(false)
+          }}
+          onClose={() => setShowStickers(false)}
+        />
+      )}
+
       {replyTo && (
         <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 pb-1 pt-2.5">
           <div className="min-w-0 flex-1 rounded-lg border-l-2 border-white/30 bg-white/[0.04] px-2.5 py-1.5">
@@ -375,6 +394,19 @@ function Thread({
         onSubmit={submit}
         className={cn('flex items-center gap-2 px-4 py-3', !replyTo && 'border-t border-white/[0.07]')}
       >
+        {isGiphyConfigured && (
+          <button
+            type="button"
+            onClick={() => setShowStickers((v) => !v)}
+            aria-label="Stickers"
+            className={cn(
+              'grid h-10 w-10 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white',
+              showStickers && 'bg-white/10 text-white',
+            )}
+          >
+            <Sticker className="h-[22px] w-[22px]" />
+          </button>
+        )}
         <input
           ref={inputRef}
           value={draft}
