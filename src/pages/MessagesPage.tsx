@@ -46,6 +46,7 @@ import {
 import { useHiddenMessages } from '@/lib/hiddenMessages'
 import { type Attachment, attachmentPreview, uploadDocumentAttachment, uploadImageAttachment } from '@/lib/attachments'
 import { useCreatePoll } from '@/lib/polls'
+import { useCreateEvent } from '@/lib/events'
 import { isJumboEmoji } from '@/lib/emoji'
 import { isGiphyConfigured, stickerUrlOf } from '@/lib/giphy'
 import { useOnline } from '@/lib/presence'
@@ -64,6 +65,7 @@ import { AttachmentMenu } from '@/components/AttachmentMenu'
 import { AttachmentCard } from '@/components/AttachmentCard'
 import { ContactPicker } from '@/components/ContactPicker'
 import { PollComposer } from '@/components/PollComposer'
+import { EventComposer } from '@/components/EventComposer'
 import { StickerPicker } from '@/components/StickerPicker'
 import { ComposerEmojiButton } from '@/components/ComposerEmojiButton'
 
@@ -263,6 +265,7 @@ function Thread({
   const { data: messages = [] } = useConversationMessages(conversation.id)
   const send = useSendMessage()
   const createPoll = useCreatePoll()
+  const createEvent = useCreateEvent()
   const { theyTyping, notifyTyping } = useTyping(conversation.id)
   const { mutate: markRead } = useMarkRead()
   const { startCall } = useCall()
@@ -287,6 +290,7 @@ function Thread({
   const [showAttach, setShowAttach] = useState(false)
   const [showContact, setShowContact] = useState(false)
   const [showPoll, setShowPoll] = useState(false)
+  const [showEvent, setShowEvent] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const galleryInput = useRef<HTMLInputElement>(null)
   const cameraInput = useRef<HTMLInputElement>(null)
@@ -501,6 +505,7 @@ function Thread({
           onContact={() => setShowContact(true)}
           onDocument={() => documentInput.current?.click()}
           onPoll={() => setShowPoll(true)}
+          onEvent={() => setShowEvent(true)}
         />
       )}
       {showContact && (
@@ -530,6 +535,30 @@ function Thread({
               })
             } catch {
               toast('Couldn’t create poll')
+            }
+          }}
+        />
+      )}
+      {showEvent && (
+        <EventComposer
+          onClose={() => setShowEvent(false)}
+          onCreate={async ({ title, description, location, startsAt }) => {
+            setShowEvent(false)
+            try {
+              const eventId = await createEvent.mutateAsync({
+                conversationId: conversation.id,
+                title,
+                description,
+                location,
+                startsAt,
+              })
+              send.mutate({
+                conversationId: conversation.id,
+                body: `📅 ${title}`,
+                attachment: { type: 'event', id: eventId },
+              })
+            } catch {
+              toast('Couldn’t create event')
             }
           }}
         />
