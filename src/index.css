@@ -154,6 +154,19 @@
     box-shadow: var(--shadow-glass);
   }
 
+  /* Medium frosted glass — for small chips that float OVER chat bubbles (reaction pills).
+     More opaque than base .glass so they read as a solid pill against a busy bubble, but
+     lighter than .glass-strong so they still feel glassy rather than a flat panel. */
+  .glass-medium {
+    position: relative;
+    background-color: rgba(16, 17, 33, 0.8);
+    background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(28px) saturate(145%);
+    -webkit-backdrop-filter: blur(28px) saturate(145%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: var(--shadow-glass);
+  }
+
   /* Subtler nested glass (inputs, chips, inner panels) */
   .glass-inset {
     background-color: rgba(2, 3, 10, 0.22);

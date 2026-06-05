@@ -2,20 +2,14 @@ import { type ReactNode } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/cn'
+import { resolveAvatar } from '@/data/feed'
 import { emojiGraphemes, emojiOnlyCount } from '@/lib/emoji'
 import { stickerUrlOf } from '@/lib/giphy'
 import { usePostById } from '@/lib/posts'
 import { usePostModal } from '@/lib/post-modal'
+import { postIdOf, urlRe } from '@/lib/postLinks'
 import { AnimatedEmoji } from './AnimatedEmoji'
 import { EmojiText } from './EmojiText'
-
-// Fresh regex per call (a shared /g regex carries lastIndex state between uses).
-const urlRe = () => /(https?:\/\/[^\s]+)/g
-
-/** The Soul post id in a `…/p/:id` link, or null. */
-function postIdOf(url: string): string | null {
-  return url.match(/^https?:\/\/[^/]+\/p\/([\w-]+)/)?.[1] ?? null
-}
 
 /** Render text with clickable links + inline (static) emoji; in-app links (same origin)
  *  use the router (no reload). Emoji rendering lives in EmojiText (shared with comments). */
@@ -46,27 +40,35 @@ function Linkified({ text, linkClass }: { text: string; linkClass: string }) {
   return <>{out}</>
 }
 
-/** A compact, tappable preview of a shared Soul post. */
+/** A large, image-forward tappable preview of a shared Soul post — the photo is the hero, with a
+ *  small avatar + @handle on a scrim overlaid at the TOP. The whole card is image and its bottom
+ *  edge stays clear, so a reaction pill can tuck onto the corner without overlapping any content. */
 function SharedPostCard({ postId }: { postId: string }) {
   const { data: post, isLoading } = usePostById(postId)
   const { openPost } = usePostModal()
-  if (isLoading) return <div className="mt-1 h-14 w-full animate-pulse rounded-xl bg-white/5" />
+  if (isLoading) return <div className="mt-1 aspect-square w-full animate-pulse rounded-xl bg-white/5" />
   if (!post) return null
   return (
     <button
       type="button"
       onClick={() => openPost(post)}
-      className="mt-1 flex w-full items-center gap-2.5 overflow-hidden rounded-xl bg-black/25 p-1.5 text-left ring-1 ring-white/10 transition hover:bg-black/35"
+      className="mt-1 block w-full overflow-hidden rounded-xl text-left ring-1 ring-white/15 transition hover:ring-white/30"
     >
       <span
-        className="h-11 w-11 shrink-0 overflow-hidden rounded-lg"
+        className="relative block aspect-square w-full overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${post.tint[0]}, ${post.tint[1]})` }}
       >
         <img src={post.image} alt="" className="h-full w-full object-cover" />
-      </span>
-      <span className="min-w-0 flex-1 pr-1">
-        <span className="block truncate text-xs font-semibold text-white">@{post.author.handle}</span>
-        <span className="block truncate text-xs text-white/70">{post.caption || 'View post'}</span>
+        <span className="absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/60 via-black/25 to-transparent px-2.5 pb-6 pt-2">
+          <img
+            src={resolveAvatar(post.author)}
+            alt=""
+            className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/25"
+          />
+          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
+            @{post.author.handle}
+          </span>
+        </span>
       </span>
     </button>
   )

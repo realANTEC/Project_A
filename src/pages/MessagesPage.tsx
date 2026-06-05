@@ -60,6 +60,7 @@ import { EmojiText } from '@/components/EmojiText'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
+import { sharedPostIdOf } from '@/lib/postLinks'
 import { MessageActionsMenu } from '@/components/MessageActionsMenu'
 import { AttachmentMenu } from '@/components/AttachmentMenu'
 import { AttachmentCard } from '@/components/AttachmentCard'
@@ -129,6 +130,12 @@ function MessageRow({
   const att = message.attachment
   const isSticker = !!stickerUrlOf(message.text)
   const bareBubble = isSticker || isJumboEmoji(message.text) || !!att
+  // A shared post renders a big image-forward card — give it the wider bubble like attachments.
+  const isSharedPost = !att && !!sharedPostIdOf(message.text)
+  // Reaction pill tuck. It sits in the message's bottom-right corner so it reads as attached to
+  // that message (not a separate one). When an "Edited" tag occupies that corner, pull up less; a
+  // bare jumbo-emoji bubble has no bottom padding, so it gets a small positive gap instead.
+  const pillMargin = message.editedAt ? (bareBubble ? 'mt-1.5' : '-mt-1') : '-mt-3'
 
   return (
     <div
@@ -139,7 +146,7 @@ function MessageRow({
         highlighted && 'bg-white/[0.07]',
       )}
     >
-      <div className={cn('relative', att ? 'max-w-[85%]' : 'max-w-[75%]')}>
+      <div className={cn('relative', att || isSharedPost ? 'max-w-[85%]' : 'max-w-[75%]')}>
         <div
           ref={bubbleRef}
           onContextMenu={(e) => {
@@ -222,10 +229,7 @@ function MessageRow({
           <div
             className={cn(
               'relative z-10 flex',
-              // Tuck under the bubble's bottom corner — but when an "Edited" tag sits there,
-              // pull up less so the pill clears the word. A bare jumbo-emoji bubble has no
-              // bottom padding, so it needs a small positive gap instead of a tuck.
-              message.editedAt ? (bareBubble ? 'mt-1.5' : '-mt-1') : '-mt-3',
+              pillMargin,
               message.fromMe ? 'justify-end pr-2' : 'justify-start pl-2',
             )}
           >
@@ -233,7 +237,7 @@ function MessageRow({
               type="button"
               onClick={open}
               aria-label="Reactions"
-              className="glass edge-light flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none"
+              className="glass-medium flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none"
             >
               {reactions.map((r) => (
                 <AnimatedEmoji

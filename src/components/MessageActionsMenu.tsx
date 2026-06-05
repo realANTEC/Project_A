@@ -101,7 +101,7 @@ export function MessageActionsMenu({
       style={{ top: 0, left: 0, visibility: 'hidden' }}
     >
       {/* Quick-reaction bar */}
-      <div className="glass-strong edge-light flex items-center gap-0.5 self-start rounded-full px-1.5 py-1">
+      <div className="glass-strong flex items-center gap-0.5 self-start rounded-full px-1.5 py-1">
         {MESSAGE_REACTIONS.map((emoji) => (
           <button
             key={emoji}

@@ -35,9 +35,9 @@ describe('MessageBody', () => {
   it('replaces a shared Soul post link with a preview card', () => {
     const url = `${window.location.origin}/p/p1`
     renderBody(`maralin on Soul ${url}`)
-    // the post card shows the author handle + caption…
+    // the image-forward post card renders as a tappable card showing the author handle…
+    expect(screen.getByRole('button')).toBeInTheDocument()
     expect(screen.getByText('@maralin')).toBeInTheDocument()
-    expect(screen.getByText('a lovely shot')).toBeInTheDocument()
     // …and the bare post URL is gone from the inline text.
     expect(screen.queryByText(url)).toBeNull()
   })
