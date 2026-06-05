@@ -182,15 +182,26 @@ export function useConversationMessages(conversationId: string | null) {
     const client = supabase
     const channel = client
       .channel(`messages:${conversationId}`)
+      // ONE binding for the messages table: INSERT (new messages) + DELETE (unsends).
+      // IMPORTANT: keep this a single `event: '*'` binding — two postgres_changes bindings on
+      // the SAME table (e.g. a separate INSERT and DELETE) silently break realtime delivery
+      // for the whole channel (the receiver stops getting any messages).
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
+        { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
+          if (payload.eventType === 'DELETE') {
+            // An unsent message (deleted for everyone) → drop it from the open thread.
+            // replica identity full makes the DELETE payload carry the row id + conversation_id.
+            const old = payload.old as { id?: string }
+            if (!old?.id) return
+            qc.setQueryData<DbMessage[]>(['messages', conversationId], (cur) =>
+              (cur ?? []).filter((m) => m.id !== old.id),
+            )
+            void qc.invalidateQueries({ queryKey: ['conversations'] })
+            return
+          }
+          if (payload.eventType !== 'INSERT') return
           const m = payload.new as MsgRow
           if (m.sender_id === myId) return // our optimistic update already added it
           qc.setQueryData<DbMessage[]>(['messages', conversationId], (old) => {
@@ -223,6 +234,27 @@ export function useConversationMessages(conversationId: string | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, () => {
         void qc.invalidateQueries({ queryKey: ['messages', conversationId] })
       })
+      // Pins ride the SAME channel (a separate per-thread pins channel was one channel too
+      // many and starved realtime delivery in the browser). Different table → safe to stack.
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'message_pins', filter: `conversation_id=eq.${conversationId}` },
+        (payload) => {
+          // Patch the pins cache directly (no refetch round-trip) so a pin/unpin reflects
+          // promptly on the OTHER client. The DELETE (unpin) needs `replica identity full` on
+          // message_pins (set in schema.sql) so the event passes the conversation_id filter + RLS.
+          // Read `old` on DELETE — `new` is an empty (but truthy) object there, so `new ?? old`
+          // would wrongly pick it and lose message_id.
+          const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as { message_id?: string }
+          const mid = row?.message_id
+          if (!mid) return
+          qc.setQueryData<string[]>(['pins', conversationId], (old) => {
+            const cur = old ?? []
+            if (payload.eventType === 'DELETE') return cur.filter((id) => id !== mid)
+            return cur.includes(mid) ? cur : [...cur, mid]
+          })
+        },
+      )
       .subscribe()
     return () => {
       void client.removeChannel(channel)
@@ -327,6 +359,85 @@ export function useToggleReaction(conversationId: string | null) {
           const others = m.reactions.filter((r) => r.userId !== myId)
           return { ...m, reactions: mineNow === emoji ? others : [...others, { userId: myId, emoji }] }
         }),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: key }),
+  })
+}
+
+/** Unsend (delete for everyone) — own messages only, via the messages_delete_own policy. */
+export function useUnsendMessage(conversationId: string | null) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const key = ['messages', conversationId]
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      if (!supabase || !session) throw new Error('Not signed in')
+      const { error } = await supabase.from('messages').delete().eq('id', messageId)
+      if (error) throw error
+    },
+    onMutate: async (messageId) => {
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<DbMessage[]>(key)
+      qc.setQueryData<DbMessage[]>(key, (old) => (old ?? []).filter((m) => m.id !== messageId))
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: key })
+      void qc.invalidateQueries({ queryKey: ['conversations'] })
+    },
+  })
+}
+
+/** Pinned message ids for a conversation (+ live updates as anyone pins/unpins). */
+export function usePins(conversationId: string | null) {
+  // Pin realtime is handled on the shared messages channel (see useConversationMessages),
+  // so this is just the query.
+  return useQuery({
+    queryKey: ['pins', conversationId],
+    enabled: !!supabase && !!conversationId,
+    queryFn: async (): Promise<string[]> => {
+      if (!supabase || !conversationId) return []
+      const { data, error } = await supabase
+        .from('message_pins')
+        .select('message_id')
+        .eq('conversation_id', conversationId)
+      if (error) throw error
+      return (data ?? []).map((p) => p.message_id)
+    },
+  })
+}
+
+/** Pin / unpin a message (any member; optimistic). */
+export function useTogglePin(conversationId: string | null) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const key = ['pins', conversationId]
+  return useMutation({
+    mutationFn: async ({ messageId, pinned }: { messageId: string; pinned: boolean }) => {
+      if (!supabase || !session || !conversationId) throw new Error('Not signed in')
+      if (pinned) {
+        const { error } = await supabase.from('message_pins').delete().eq('message_id', messageId)
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('message_pins')
+          .insert({ message_id: messageId, conversation_id: conversationId, pinned_by: session.user.id })
+        if (error) throw error
+      }
+    },
+    onMutate: async ({ messageId, pinned }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<string[]>(key)
+      qc.setQueryData<string[]>(key, (old) =>
+        pinned ? (old ?? []).filter((id) => id !== messageId) : [...(old ?? []), messageId],
       )
       return { prev }
     },

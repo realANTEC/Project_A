@@ -8,7 +8,7 @@ import {
 } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Info, Pencil, Phone, Search, Send, SmilePlus, Video, X } from 'lucide-react'
+import { ArrowLeft, Info, Pencil, Phone, Pin, Search, Send, SmilePlus, Video, X } from 'lucide-react'
 import { avatar, resolveAvatar } from '@/data/feed'
 import { conversations as mockConversations } from '@/data/messages'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -19,12 +19,16 @@ import {
   useConversationMessages,
   useConversations,
   useMarkRead,
+  usePins,
   useProfiles,
   useSendMessage,
   useStartConversation,
   useToggleReaction,
+  useTogglePin,
   useTyping,
+  useUnsendMessage,
 } from '@/lib/messages'
+import { useHiddenMessages } from '@/lib/hiddenMessages'
 import { useOnline } from '@/lib/presence'
 import { useCall } from '@/lib/calls'
 import { useAuth } from '@/lib/auth'
@@ -201,6 +205,10 @@ function Thread({
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const toggleReaction = useToggleReaction(conversation.id)
+  const unsend = useUnsendMessage(conversation.id)
+  const togglePin = useTogglePin(conversation.id)
+  const { data: pins = [] } = usePins(conversation.id)
+  const { hidden, hide } = useHiddenMessages()
   const { toast } = useToast()
   const { session } = useAuth()
   const myId = session?.user.id
@@ -216,6 +224,14 @@ function Thread({
     setHighlightId(id)
     window.setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 1600)
   }
+
+  // "Delete for you" hides locally; pinned bar shows the conversation's pinned messages.
+  const visible = messages.filter((m) => !hidden.has(m.id))
+  // Resolve pins from `visible`, not `messages`, so a message you deleted-for-you doesn't
+  // reappear in YOUR pinned banner (even if the other person pinned it).
+  const pinnedMessages = pins
+    .map((id) => visible.find((m) => m.id === id))
+    .filter((m): m is DbMessage => !!m)
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -287,13 +303,34 @@ function Thread({
         </button>
       </div>
 
+      {pinnedMessages.length > 0 && (
+        <div className="flex flex-col gap-1 border-b border-white/[0.07] px-4 py-2">
+          {pinnedMessages.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => jumpTo(m.id)}
+              className="flex items-center gap-2 text-left"
+            >
+              <Pin className="h-3.5 w-3.5 shrink-0 text-lilac" />
+              <span className="truncate text-xs text-white/65">
+                <span className="font-semibold text-white/85">
+                  {m.fromMe ? 'You' : conversation.user.name.split(' ')[0]}:
+                </span>{' '}
+                {m.text}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div ref={scrollRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {messages.length === 0 && (
+        {visible.length === 0 && (
           <p className="py-10 text-center text-sm text-white/55">
             No messages yet — say hello to {conversation.user.name.split(' ')[0]}.
           </p>
         )}
-        {messages.map((m) => (
+        {visible.map((m) => (
           <MessageRow
             key={m.id}
             message={m}
@@ -375,6 +412,24 @@ function Thread({
               () => toast('Couldn’t copy'),
             )
           }}
+          onTogglePin={
+            menuMessage.id.startsWith('temp-')
+              ? undefined
+              : () => togglePin.mutate({ messageId: menuMessage.id, pinned: pins.includes(menuMessage.id) })
+          }
+          isPinned={pins.includes(menuMessage.id)}
+          onDeleteForYou={() => {
+            hide(menuMessage.id)
+            toast('Removed for you')
+          }}
+          onUnsend={
+            menuMessage.fromMe && !menuMessage.id.startsWith('temp-')
+              ? () => {
+                  unsend.mutate(menuMessage.id)
+                  toast('Unsent')
+                }
+              : undefined
+          }
           onClose={() => setMenu(null)}
         />
       )}

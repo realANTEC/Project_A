@@ -313,6 +313,9 @@ create table if not exists public.message_pins (
   created_at timestamptz not null default now()
 );
 alter table public.message_pins enable row level security;
+-- Carry the full old row on realtime DELETE so an unpin reaches the other client (the
+-- conversation_id filter + RLS need conversation_id, which the default replica identity omits).
+alter table public.message_pins replica identity full;
 drop policy if exists "message_pins_select_member" on public.message_pins;
 drop policy if exists "message_pins_insert_member" on public.message_pins;
 drop policy if exists "message_pins_delete_member" on public.message_pins;

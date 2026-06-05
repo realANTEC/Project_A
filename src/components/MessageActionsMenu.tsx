@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Copy, Reply } from 'lucide-react'
+import { Copy, Pin, PinOff, Reply, RotateCcw, Trash2 } from 'lucide-react'
 import { MESSAGE_REACTIONS, type DbMessage } from '@/lib/messages'
 import { cn } from '@/lib/cn'
 import { EmojiPicker } from './EmojiPicker'
@@ -14,6 +14,11 @@ export type MessageActionsMenuProps = {
   onReact: (emoji: string) => void
   onReply?: () => void
   onCopy: () => void
+  onTogglePin?: () => void
+  isPinned?: boolean
+  onDeleteForYou?: () => void
+  /** Only provided for your own messages — unsends (deletes for everyone). */
+  onUnsend?: () => void
   onClose: () => void
 }
 
@@ -29,6 +34,10 @@ export function MessageActionsMenu({
   onReact,
   onReply,
   onCopy,
+  onTogglePin,
+  isPinned,
+  onDeleteForYou,
+  onUnsend,
   onClose,
 }: MessageActionsMenuProps) {
   const popRef = useRef<HTMLDivElement>(null)
@@ -147,6 +156,52 @@ export function MessageActionsMenu({
           <Copy className="h-[18px] w-[18px] text-white/70" />
           Copy
         </button>
+        {onTogglePin && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onTogglePin()
+              onClose()
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-white/85 transition hover:bg-white/[0.06]"
+          >
+            {isPinned ? (
+              <PinOff className="h-[18px] w-[18px] text-white/70" />
+            ) : (
+              <Pin className="h-[18px] w-[18px] text-white/70" />
+            )}
+            {isPinned ? 'Unpin' : 'Pin'}
+          </button>
+        )}
+        {onDeleteForYou && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onDeleteForYou()
+              onClose()
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-white/85 transition hover:bg-white/[0.06]"
+          >
+            <Trash2 className="h-[18px] w-[18px] text-white/70" />
+            Delete for you
+          </button>
+        )}
+        {onUnsend && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onUnsend()
+              onClose()
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-rose-300 transition hover:bg-rose-500/10"
+          >
+            <RotateCcw className="h-[18px] w-[18px] text-rose-300/80" />
+            Unsend
+          </button>
+        )}
       </div>
     </div>,
     document.body,
