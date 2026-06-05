@@ -1,9 +1,12 @@
 import { type ReactNode } from 'react'
+import { motion, useReducedMotion } from 'motion/react'
 import { Link } from 'react-router-dom'
 import { cn } from '@/lib/cn'
+import { emojiGraphemes, emojiOnlyCount } from '@/lib/emoji'
 import { stickerUrlOf } from '@/lib/giphy'
 import { usePostById } from '@/lib/posts'
 import { usePostModal } from '@/lib/post-modal'
+import { AnimatedEmoji } from './AnimatedEmoji'
 
 // Fresh regex per call (a shared /g regex carries lastIndex state between uses).
 const urlRe = () => /(https?:\/\/[^\s]+)/g
@@ -70,9 +73,31 @@ function SharedPostCard({ postId }: { postId: string }) {
 /** Chat message content: long links wrap, URLs are clickable, and a shared Soul post
  *  renders as a preview card (its bare /p/:id link is replaced by the card). */
 export function MessageBody({ text, fromMe }: { text: string; fromMe: boolean }) {
+  const reduceMotion = useReducedMotion()
   // A message that is just a GIPHY sticker URL renders as the sticker image.
   const sticker = stickerUrlOf(text)
   if (sticker) return <img src={sticker} alt="Sticker" loading="lazy" className="max-h-40 w-auto max-w-full" />
+
+  // A short emoji-only message renders large with no bubble. Each emoji is Google's looping
+  // animated WebP (falls back to the glyph on 404) and pops in — unless reduced motion, where
+  // it stays the static glyph.
+  const emoji = emojiOnlyCount(text)
+  if (emoji >= 1 && emoji <= 3) {
+    const size = emoji === 1 ? 'text-6xl' : emoji === 2 ? 'text-5xl' : 'text-4xl'
+    if (reduceMotion) return <span className={cn('inline-block leading-none', size)}>{text.trim()}</span>
+    return (
+      <motion.span
+        className={cn('inline-flex items-center gap-1 leading-none', size)}
+        initial={{ scale: 0.4, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 500, damping: 16 }}
+      >
+        {emojiGraphemes(text).map((g, i) => (
+          <AnimatedEmoji key={i} emoji={g} />
+        ))}
+      </motion.span>
+    )
+  }
 
   const urls = [...text.matchAll(urlRe())].map((m) => m[0])
   const postUrl = urls.find((u) => postIdOf(u) !== null) ?? null

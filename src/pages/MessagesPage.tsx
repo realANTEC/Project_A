@@ -29,6 +29,7 @@ import {
   useUnsendMessage,
 } from '@/lib/messages'
 import { useHiddenMessages } from '@/lib/hiddenMessages'
+import { isJumboEmoji } from '@/lib/emoji'
 import { isGiphyConfigured, stickerUrlOf } from '@/lib/giphy'
 import { useOnline } from '@/lib/presence'
 import { useCall } from '@/lib/calls'
@@ -100,6 +101,7 @@ function MessageRow({
 
   const reactions = groupReactions(message.reactions, myId)
   const isSticker = !!stickerUrlOf(message.text)
+  const bareBubble = isSticker || isJumboEmoji(message.text)
 
   return (
     <div
@@ -123,8 +125,8 @@ function MessageRow({
           onPointerCancel={cancelPress}
           className={cn(
             'select-none break-words leading-relaxed',
-            isSticker
-              ? 'rounded-2xl' // a sticker shows on its own — no bubble background or padding
+            bareBubble
+              ? 'rounded-2xl' // sticker or jumbo emoji shows on its own — no bubble bg or padding
               : cn(
                   'px-4 py-2.5 text-sm',
                   message.fromMe
