@@ -42,6 +42,7 @@ import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
 import { MessageActionsMenu } from '@/components/MessageActionsMenu'
 import { StickerPicker } from '@/components/StickerPicker'
+import { ComposerEmojiButton } from '@/components/ComposerEmojiButton'
 
 export function MessagesPage() {
   return isSupabaseConfigured ? <RealMessages /> : <MockMessages />
@@ -236,6 +237,19 @@ function Thread({
     window.setTimeout(() => setHighlightId((cur) => (cur === id ? null : cur)), 1600)
   }
 
+  // Insert an emoji from the composer picker at the caret (keeps focus + caret position).
+  const insertEmoji = (emoji: string) => {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? draft.length
+    const end = el?.selectionEnd ?? draft.length
+    setDraft(draft.slice(0, start) + emoji + draft.slice(end))
+    requestAnimationFrame(() => {
+      el?.focus()
+      const pos = start + emoji.length
+      el?.setSelectionRange(pos, pos)
+    })
+  }
+
   // "Delete for you" hides locally; pinned bar shows the conversation's pinned messages.
   const visible = messages.filter((m) => !hidden.has(m.id))
   // Resolve pins from `visible`, not `messages`, so a message you deleted-for-you doesn't
@@ -409,6 +423,7 @@ function Thread({
             <Sticker className="h-[22px] w-[22px]" />
           </button>
         )}
+        <ComposerEmojiButton onPick={insertEmoji} />
         <input
           ref={inputRef}
           value={draft}
