@@ -267,10 +267,19 @@ end $$;
 alter table public.messages
   add column if not exists reply_to uuid references public.messages (id) on delete set null;
 
+-- Edit: a message may be edited; edited_at records when (null = never edited).
+alter table public.messages
+  add column if not exists edited_at timestamptz;
+
 -- Unsend = delete-for-everyone, own messages only.
 drop policy if exists "messages_delete_own" on public.messages;
 create policy "messages_delete_own" on public.messages
   for delete using (auth.uid() = sender_id);
+
+-- Edit = update own message body, own messages only.
+drop policy if exists "messages_update_own" on public.messages;
+create policy "messages_update_own" on public.messages
+  for update using (auth.uid() = sender_id) with check (auth.uid() = sender_id);
 
 -- So realtime DELETE events carry the full old row (the conversation_id filter
 -- then matches on delete, and clients can act on the removed message).

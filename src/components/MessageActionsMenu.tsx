@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Copy, Pin, PinOff, Reply, RotateCcw, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Pin, PinOff, Reply, RotateCcw, Trash2 } from 'lucide-react'
 import { MESSAGE_REACTIONS, type DbMessage } from '@/lib/messages'
 import { cn } from '@/lib/cn'
+import { AnimatedEmoji } from './AnimatedEmoji'
 import { EmojiPicker } from './EmojiPicker'
 
 export type MessageActionsMenuProps = {
@@ -13,6 +14,8 @@ export type MessageActionsMenuProps = {
   anchorRect: DOMRect
   onReact: (emoji: string) => void
   onReply?: () => void
+  /** Only provided for your own (non-sticker) messages — edits the body. */
+  onEdit?: () => void
   onCopy: () => void
   onTogglePin?: () => void
   isPinned?: boolean
@@ -33,6 +36,7 @@ export function MessageActionsMenu({
   anchorRect,
   onReact,
   onReply,
+  onEdit,
   onCopy,
   onTogglePin,
   isPinned,
@@ -106,11 +110,11 @@ export function MessageActionsMenu({
             aria-pressed={myReaction === emoji}
             onClick={() => react(emoji)}
             className={cn(
-              'grid h-9 w-9 place-items-center rounded-full text-xl leading-none transition hover:scale-125',
+              'grid h-9 w-9 place-items-center rounded-full text-2xl leading-none transition hover:scale-125',
               myReaction === emoji && 'bg-white/15',
             )}
           >
-            {emoji}
+            <AnimatedEmoji emoji={emoji} />
           </button>
         ))}
         <button
@@ -142,6 +146,20 @@ export function MessageActionsMenu({
           >
             <Reply className="h-[18px] w-[18px] text-white/70" />
             Reply
+          </button>
+        )}
+        {onEdit && (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              onEdit()
+              onClose()
+            }}
+            className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left font-medium text-white/85 transition hover:bg-white/[0.06]"
+          >
+            <Pencil className="h-[18px] w-[18px] text-white/70" />
+            Edit
           </button>
         )}
         <button

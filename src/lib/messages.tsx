@@ -14,6 +14,8 @@ export type DbMessage = {
   text: string
   time: string
   createdAt: string
+  /** When this message was last edited (null = never edited). */
+  editedAt: string | null
   reactions: MsgReaction[]
   /** The message this one replies to (quoted), resolved via the query embed. */
   parent: { id: string; text: string; fromMe: boolean } | null
@@ -35,7 +37,14 @@ export type Profile = User & { id: string }
 const clock = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
 type MemberRow = { user_id: string; last_read_at: string | null; profile: DbAuthor | null }
-type MsgRow = { id: string; body: string; sender_id: string; created_at: string; reply_to?: string | null }
+type MsgRow = {
+  id: string
+  body: string
+  sender_id: string
+  created_at: string
+  reply_to?: string | null
+  edited_at?: string | null
+}
 type ConvRow = { id: string; created_at: string; members: MemberRow[]; messages: MsgRow[] }
 type ReactionRow = { user_id: string; emoji: string }
 type ParentRow = { id: string; body: string; sender_id: string }
@@ -51,6 +60,7 @@ function toDbMessage(m: MsgRowWithReactions, myId?: string): DbMessage {
     text: m.body,
     time: clock(m.created_at),
     createdAt: m.created_at,
+    editedAt: m.edited_at ?? null,
     reactions: (m.message_reactions ?? []).map((r) => ({ userId: r.user_id, emoji: r.emoji })),
     parent: m.parent ? { id: m.parent.id, text: m.parent.body, fromMe: m.parent.sender_id === myId } : null,
   }
@@ -167,7 +177,7 @@ export function useConversationMessages(conversationId: string | null) {
       const { data, error } = await supabase
         .from('messages')
         .select(
-          'id, body, sender_id, created_at, reply_to, parent:reply_to(id, body, sender_id), message_reactions(user_id, emoji)',
+          'id, body, sender_id, created_at, reply_to, edited_at, parent:reply_to(id, body, sender_id), message_reactions(user_id, emoji)',
         )
         .eq('conversation_id', conversationId)
         .order('created_at', { ascending: true })
@@ -201,6 +211,17 @@ export function useConversationMessages(conversationId: string | null) {
             void qc.invalidateQueries({ queryKey: ['conversations'] })
             return
           }
+          if (payload.eventType === 'UPDATE') {
+            // An edited message → patch its body + editedAt in place (keep reactions/parent).
+            // replica identity full makes the UPDATE payload carry the full new row. Idempotent
+            // for my own edit (the optimistic patch already set the same values).
+            const m = payload.new as MsgRow
+            qc.setQueryData<DbMessage[]>(['messages', conversationId], (cur) =>
+              (cur ?? []).map((x) => (x.id === m.id ? { ...x, text: m.body, editedAt: m.edited_at ?? null } : x)),
+            )
+            void qc.invalidateQueries({ queryKey: ['conversations'] })
+            return
+          }
           if (payload.eventType !== 'INSERT') return
           const m = payload.new as MsgRow
           if (m.sender_id === myId) return // our optimistic update already added it
@@ -215,6 +236,7 @@ export function useConversationMessages(conversationId: string | null) {
                 text: m.body,
                 time: clock(m.created_at),
                 createdAt: m.created_at,
+                editedAt: m.edited_at ?? null,
                 reactions: [],
                 parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
               },
@@ -298,6 +320,7 @@ export function useSendMessage() {
           text: body,
           time: clock(now),
           createdAt: now,
+          editedAt: null,
           reactions: [],
           parent: parent ? { id: parent.id, text: parent.text, fromMe: parent.fromMe } : null,
         },
@@ -309,6 +332,39 @@ export function useSendMessage() {
     },
     onSettled: (_d, _e, vars) => {
       void qc.invalidateQueries({ queryKey: ['messages', vars.conversationId] })
+      void qc.invalidateQueries({ queryKey: ['conversations'] })
+    },
+  })
+}
+
+/** Edit a message's body — own messages only, via the messages_update_own policy. Optimistic. */
+export function useEditMessage(conversationId: string | null) {
+  const qc = useQueryClient()
+  const { session } = useAuth()
+  const key = ['messages', conversationId]
+  return useMutation({
+    mutationFn: async ({ messageId, body }: { messageId: string; body: string }) => {
+      if (!supabase || !session) throw new Error('Not signed in')
+      const { error } = await supabase
+        .from('messages')
+        .update({ body, edited_at: new Date().toISOString() })
+        .eq('id', messageId)
+      if (error) throw error
+    },
+    onMutate: async ({ messageId, body }) => {
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData<DbMessage[]>(key)
+      const now = new Date().toISOString()
+      qc.setQueryData<DbMessage[]>(key, (old) =>
+        (old ?? []).map((m) => (m.id === messageId ? { ...m, text: body, editedAt: now } : m)),
+      )
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: key })
       void qc.invalidateQueries({ queryKey: ['conversations'] })
     },
   })

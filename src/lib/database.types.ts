@@ -148,6 +148,7 @@ export type Database = {
           sender_id: string
           body: string
           reply_to: string | null
+          edited_at: Ts | null
           created_at: Ts
         }
         Insert: {
@@ -156,6 +157,7 @@ export type Database = {
           sender_id: string
           body: string
           reply_to?: string | null
+          edited_at?: Ts | null
           created_at?: Ts
         }
         Update: Partial<Database['public']['Tables']['messages']['Insert']>

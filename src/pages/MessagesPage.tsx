@@ -8,7 +8,20 @@ import {
 } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { ArrowLeft, Info, Pencil, Phone, Pin, Search, Send, SmilePlus, Sticker, Video, X } from 'lucide-react'
+import {
+  ArrowLeft,
+  Check,
+  Info,
+  Pencil,
+  Phone,
+  Pin,
+  Search,
+  Send,
+  SmilePlus,
+  Sticker,
+  Video,
+  X,
+} from 'lucide-react'
 import { avatar, resolveAvatar } from '@/data/feed'
 import { conversations as mockConversations } from '@/data/messages'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -18,6 +31,7 @@ import {
   groupReactions,
   useConversationMessages,
   useConversations,
+  useEditMessage,
   useMarkRead,
   usePins,
   useProfiles,
@@ -37,6 +51,7 @@ import { useAuth } from '@/lib/auth'
 import { useToast } from '@/lib/toast'
 import { cn } from '@/lib/cn'
 import { Page } from '@/components/Page'
+import { AnimatedEmoji } from '@/components/AnimatedEmoji'
 import { Avatar } from '@/components/Avatar'
 import { VerifiedBadge } from '@/components/VerifiedBadge'
 import { MessageBody } from '@/components/MessageBody'
@@ -152,6 +167,23 @@ function MessageRow({
             </button>
           )}
           <MessageBody text={message.text} fromMe={message.fromMe} />
+          {/* Show "Edited" even when the result is a bare jumbo emoji (Edit is hidden on
+              stickers, so a bare bubble carrying editedAt is always an emoji-only edit). */}
+          {message.editedAt && (
+            <span
+              title={`Edited ${new Date(message.editedAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}`}
+              className={cn(
+                'mt-0.5 block text-[10px] leading-none',
+                bareBubble && 'px-1',
+                message.fromMe ? 'text-right text-white/60' : 'text-white/45',
+              )}
+            >
+              Edited
+            </span>
+          )}
         </div>
 
         {/* Desktop hover trigger (long-press / right-click also open the menu). */}
@@ -172,7 +204,11 @@ function MessageRow({
         {reactions.length > 0 && (
           <div
             className={cn(
-              'relative z-10 -mt-3 flex',
+              'relative z-10 flex',
+              // Tuck under the bubble's bottom corner — but when an "Edited" tag sits there,
+              // pull up less so the pill clears the word. A bare jumbo-emoji bubble has no
+              // bottom padding, so it needs a small positive gap instead of a tuck.
+              message.editedAt ? (bareBubble ? 'mt-1.5' : '-mt-1') : '-mt-3',
               message.fromMe ? 'justify-end pr-2' : 'justify-start pl-2',
             )}
           >
@@ -183,9 +219,11 @@ function MessageRow({
               className="glass edge-light flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs leading-none"
             >
               {reactions.map((r) => (
-                <span key={r.emoji} className={cn(r.mine && 'drop-shadow-[0_0_5px_rgba(190,150,255,0.9)]')}>
-                  {r.emoji}
-                </span>
+                <AnimatedEmoji
+                  key={r.emoji}
+                  emoji={r.emoji}
+                  className={cn('text-sm', r.mine && 'drop-shadow-[0_0_5px_rgba(190,150,255,0.9)]')}
+                />
               ))}
               {message.reactions.length > 1 && (
                 <span className="ml-0.5 font-semibold text-white/70">{message.reactions.length}</span>
@@ -217,6 +255,7 @@ function Thread({
   const scrollRef = useRef<HTMLDivElement>(null)
   const toggleReaction = useToggleReaction(conversation.id)
   const unsend = useUnsendMessage(conversation.id)
+  const editMessage = useEditMessage(conversation.id)
   const togglePin = useTogglePin(conversation.id)
   const { data: pins = [] } = usePins(conversation.id)
   const { hidden, hide } = useHiddenMessages()
@@ -226,6 +265,7 @@ function Thread({
   const [menu, setMenu] = useState<{ id: string; rect: DOMRect } | null>(null)
   const menuMessage = menu ? (messages.find((m) => m.id === menu.id) ?? null) : null
   const [replyTo, setReplyTo] = useState<DbMessage | null>(null)
+  const [editing, setEditing] = useState<DbMessage | null>(null)
   const [highlightId, setHighlightId] = useState<string | null>(null)
   const [showStickers, setShowStickers] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -271,6 +311,12 @@ function Thread({
     e.preventDefault()
     const t = draft.trim()
     if (!t) return
+    if (editing) {
+      if (t !== editing.text) editMessage.mutate({ messageId: editing.id, body: t })
+      setEditing(null)
+      setDraft('')
+      return
+    }
     send.mutate({ conversationId: conversation.id, body: t, replyTo: replyTo?.id ?? null })
     setDraft('')
     setReplyTo(null)
@@ -382,23 +428,35 @@ function Thread({
           onPick={(url) => {
             send.mutate({ conversationId: conversation.id, body: url })
             setShowStickers(false)
+            if (editing) {
+              setEditing(null)
+              setDraft('')
+            }
+            setReplyTo(null)
           }}
           onClose={() => setShowStickers(false)}
         />
       )}
 
-      {replyTo && (
+      {(editing || replyTo) && (
         <div className="flex items-center gap-2 border-t border-white/[0.07] px-4 pb-1 pt-2.5">
           <div className="min-w-0 flex-1 rounded-lg border-l-2 border-white/30 bg-white/[0.04] px-2.5 py-1.5">
             <p className="text-xs font-semibold text-lilac">
-              Replying to {replyTo.fromMe ? 'yourself' : conversation.user.name.split(' ')[0]}
+              {editing
+                ? 'Editing message'
+                : `Replying to ${replyTo!.fromMe ? 'yourself' : conversation.user.name.split(' ')[0]}`}
             </p>
-            <p className="truncate text-xs text-white/60">{replyTo.text}</p>
+            <p className="truncate text-xs text-white/60">{editing ? editing.text : replyTo!.text}</p>
           </div>
           <button
             type="button"
-            onClick={() => setReplyTo(null)}
-            aria-label="Cancel reply"
+            onClick={() => {
+              if (editing) {
+                setEditing(null)
+                setDraft('')
+              } else setReplyTo(null)
+            }}
+            aria-label={editing ? 'Cancel edit' : 'Cancel reply'}
             className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-white/60 transition hover:bg-white/10 hover:text-white"
           >
             <X className="h-4 w-4" />
@@ -408,7 +466,10 @@ function Thread({
 
       <form
         onSubmit={submit}
-        className={cn('flex items-center gap-2 px-4 py-3', !replyTo && 'border-t border-white/[0.07]')}
+        className={cn(
+          'flex items-center gap-2 px-4 py-3',
+          !replyTo && !editing && 'border-t border-white/[0.07]',
+        )}
       >
         {isGiphyConfigured && (
           <button
@@ -429,19 +490,19 @@ function Thread({
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value)
-            notifyTyping()
+            if (!editing) notifyTyping()
           }}
-          placeholder="Message…"
-          aria-label="Message"
+          placeholder={editing ? 'Edit message…' : 'Message…'}
+          aria-label={editing ? 'Edit message' : 'Message'}
           className="glass-inset min-w-0 flex-1 rounded-full px-4 py-2.5 text-sm text-white placeholder:text-white/55 focus:outline-none"
         />
         <button
           type="submit"
-          disabled={!draft.trim()}
-          aria-label="Send"
+          disabled={!draft.trim() || (!!editing && draft.trim() === editing.text)}
+          aria-label={editing ? 'Save edit' : 'Send'}
           className="bg-aurora grid h-10 w-10 shrink-0 place-items-center rounded-full text-white shadow-[var(--shadow-glow-violet)] transition active:scale-95 disabled:opacity-40"
         >
-          <Send className="h-5 w-5" />
+          {editing ? <Check className="h-5 w-5" /> : <Send className="h-5 w-5" />}
         </button>
       </form>
 
@@ -452,9 +513,21 @@ function Thread({
           anchorRect={menu.rect}
           onReact={(emoji) => toggleReaction.mutate({ messageId: menuMessage.id, emoji })}
           onReply={() => {
+            setEditing(null)
             setReplyTo(menuMessage)
             requestAnimationFrame(() => inputRef.current?.focus())
           }}
+          onEdit={
+            menuMessage.fromMe && !menuMessage.id.startsWith('temp-') && !stickerUrlOf(menuMessage.text)
+              ? () => {
+                  setReplyTo(null)
+                  setShowStickers(false)
+                  setEditing(menuMessage)
+                  setDraft(menuMessage.text)
+                  requestAnimationFrame(() => inputRef.current?.focus())
+                }
+              : undefined
+          }
           onCopy={() => {
             navigator.clipboard?.writeText(menuMessage.text).then(
               () => toast('Copied'),
