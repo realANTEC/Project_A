@@ -21,7 +21,12 @@ test.describe('comment emoji picker', () => {
     await expect(picker).toBeVisible()
 
     const firstEmoji = picker.getByRole('button').first()
-    const emojiChar = ((await firstEmoji.textContent()) ?? '').trim()
+    // The emoji renders as an <img alt="😀"> (static Noto), so read it from alt;
+    // fall back to text content for the glyph case (a missing asset → 404 fallback).
+    const img = firstEmoji.locator('img')
+    const emojiChar = (await img.count())
+      ? ((await img.getAttribute('alt')) ?? '')
+      : ((await firstEmoji.textContent()) ?? '').trim()
     await firstEmoji.click()
 
     await expect(input).toHaveValue(emojiChar)
