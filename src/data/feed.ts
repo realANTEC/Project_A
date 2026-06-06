@@ -393,14 +393,19 @@ const BIOS: Record<string, { bio: string; website?: string; followers: number; f
 export function getProfile(handle: string): Profile {
   const user = Object.values(u).find((x) => x.handle === handle) ?? u.mara
   const meta = BIOS[handle] ?? { bio: 'Made of light.', followers: 4200, following: 180 }
-  const own = posts.filter((p) => p.author.handle === handle)
-  const grid = [...own, ...explorePosts].slice(0, 12)
+  // ONLY this person's own posts: their feed posts + the explore posts attributed to them. Exclude
+  // any explore photo that is actually a feed author's image, so a photo reused across the two pools
+  // shows on a single profile (its feed author's), never on someone else's.
+  const feedImages = new Set(posts.map((p) => p.image))
+  const ownFeed = posts.filter((p) => p.author.handle === handle)
+  const ownExplore = explorePosts.filter((p) => p.author.handle === handle && !feedImages.has(p.image))
+  const grid = [...ownFeed, ...ownExplore]
   return {
     user,
     bio: meta.bio,
     website: meta.website,
     stats: {
-      posts: grid.length + (own.length ? 134 : 18),
+      posts: grid.length,
       followers: meta.followers,
       following: meta.following,
     },
