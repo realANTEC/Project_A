@@ -77,7 +77,7 @@ export function ExplorePage() {
   return (
     <Page>
       {/* Sticky header + filter chips */}
-      <div className="sticky top-16 z-30 lg:top-0 -mx-3 mb-5 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 pb-3 pt-4 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
+      <div className="sticky top-16 z-30 mb-5 bg-gradient-to-b from-canvas via-canvas/85 to-transparent pb-3 pt-4 backdrop-blur-md lg:top-0 lg:pt-6">
         <h1 className="font-display text-2xl font-bold tracking-tight text-white">Explore</h1>
         <div className="no-scrollbar mask-fade-r mt-3 flex gap-2 overflow-x-auto">
           {FILTERS.map((f, i) => (
