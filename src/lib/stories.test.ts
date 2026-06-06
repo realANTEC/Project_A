@@ -5,19 +5,20 @@ import { buildStoryReels, flattenReels, type StoryReel } from './stories'
 describe('buildStoryReels', () => {
   const reels = buildStoryReels(stories, posts)
 
-  it('builds one reel per story entry', () => {
-    expect(reels).toHaveLength(stories.length)
+  it('builds a reel only for story entries that have posts', () => {
+    const withPosts = stories.filter((s) => posts.some((p) => p.author.handle === s.user.handle))
+    expect(reels).toHaveLength(withPosts.length)
+    expect(reels.length).toBeLessThan(stories.length) // some curated people have no posts
   })
 
-  it("uses a person's own posts as story frames", () => {
+  it("uses a person's own posts as story frames (every frame has an image)", () => {
     const mara = reels.find((r) => r.user.handle === 'maralin')
     expect(mara?.frames[0].image).toBeTruthy()
+    expect(reels.every((r) => r.frames.length > 0 && r.frames.every((f) => f.image))).toBe(true)
   })
 
-  it('falls back to a single placeholder frame for people with no posts', () => {
-    const sofia = reels.find((r) => r.user.handle === 'sofiam')
-    expect(sofia?.frames).toHaveLength(1)
-    expect(sofia?.frames[0].image).toBeUndefined()
+  it('omits people with no posts entirely (no empty placeholder reel)', () => {
+    expect(reels.find((r) => r.user.handle === 'sofiam')).toBeUndefined()
   })
 })
 

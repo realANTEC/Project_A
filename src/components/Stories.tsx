@@ -11,6 +11,9 @@ import { cn } from '@/lib/cn'
 import { Avatar } from './Avatar'
 import { StoryViewer } from './StoryViewer'
 
+// Curated handles that actually have a post — only these get a story (no empty placeholder cards).
+const STORY_HANDLES = new Set(posts.map((p) => p.author.handle))
+
 /** Horizontally scrolling story rail with conic rings and a "Your story" add. */
 export function Stories({ following = false }: { following?: boolean }) {
   const { openCompose } = useCompose()
@@ -25,10 +28,13 @@ export function Stories({ following = false }: { following?: boolean }) {
     [followList.data],
   )
   const shown = useMemo(
-    () => (following ? stories.filter((s) => followedHandles.has(s.user.handle)) : stories),
+    () =>
+      (following ? stories.filter((s) => followedHandles.has(s.user.handle)) : stories).filter((s) =>
+        STORY_HANDLES.has(s.user.handle),
+      ),
     [following, followedHandles],
   )
-  // Each person's own posts become their story frames (placeholder when they have none).
+  // Each person's own posts become their story frames; people with none aren't shown at all.
   const reels = useMemo(() => buildStoryReels(shown, posts), [shown])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState({ left: false, right: false })

@@ -10,21 +10,19 @@ export type FlatFrame = {
   frame: StoryFrame
 }
 
-const PLACEHOLDER_TINT: [string, string] = ['#241a36', '#0f2a3a']
-
 /**
  * Group a posts pool into per-user story reels: a user's own posts become their
- * story frames (newest first, up to 3). Users with no posts get a single
- * avatar-on-gradient placeholder frame — honest content, no invented backend.
+ * story frames (newest first, up to 3). People with no posts get NO reel — we
+ * never invent an empty placeholder card.
  */
 export function buildStoryReels(entries: { user: User }[], pool: Post[]): StoryReel[] {
-  return entries.map(({ user }) => {
+  const reels: StoryReel[] = []
+  for (const { user } of entries) {
     const own = pool.filter((p) => p.author.handle === user.handle).slice(0, 3)
-    const frames: StoryFrame[] = own.length
-      ? own.map((p) => ({ image: p.image, tint: p.tint }))
-      : [{ tint: PLACEHOLDER_TINT }]
-    return { user, frames }
-  })
+    if (!own.length) continue
+    reels.push({ user, frames: own.map((p) => ({ image: p.image, tint: p.tint })) })
+  }
+  return reels
 }
 
 /** Flatten reels into one sequence so the viewer can tap through with a single index. */
