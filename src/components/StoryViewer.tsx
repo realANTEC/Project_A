@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { X } from 'lucide-react'
 import { resolveAvatar } from '@/data/feed'
@@ -25,6 +26,7 @@ export function StoryViewer({
   }, [flat, startIndex])
   const [pos, setPos] = useState(startPos)
   const trapRef = useFocusTrap<HTMLDivElement>(true)
+  const navigate = useNavigate()
   const current = flat[pos] ?? flat[0]
 
   // Auto-advance; close after the final frame of the final reel.
@@ -107,8 +109,18 @@ export function StoryViewer({
             ))}
           </div>
           <div className="mt-3 flex items-center gap-2.5">
-            <Avatar src={resolveAvatar(reel.user)} alt={reel.user.name} size={32} />
-            <span className="text-sm font-semibold text-white drop-shadow">{reel.user.handle}</span>
+            <button
+              type="button"
+              onClick={() => {
+                onClose()
+                navigate(`/u/${reel.user.handle}`)
+              }}
+              aria-label={`View ${reel.user.name}'s profile`}
+              className="flex items-center gap-2.5 rounded-full transition hover:opacity-80"
+            >
+              <Avatar src={resolveAvatar(reel.user)} alt={reel.user.name} size={32} />
+              <span className="text-sm font-semibold text-white drop-shadow">{reel.user.handle}</span>
+            </button>
             <span className="text-xs text-white/70">now</span>
             <button
               type="button"
