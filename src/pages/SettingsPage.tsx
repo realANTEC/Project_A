@@ -19,8 +19,9 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     >
       <span
         className={cn(
-          'absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all',
-          value ? 'left-[22px]' : 'left-0.5',
+          // GPU-composited slide (translate, not `left`) so the knob can't trigger layout.
+          'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ease-out',
+          value ? 'translate-x-5' : 'translate-x-0',
         )}
       />
     </button>

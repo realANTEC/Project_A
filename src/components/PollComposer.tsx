@@ -114,8 +114,9 @@ export function PollComposer({ onCreate, onClose }: { onCreate: (p: NewPoll) => 
             >
               <span
                 className={cn(
-                  'absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all',
-                  allowMultiple ? 'left-[1.125rem]' : 'left-0.5',
+                  // GPU-composited slide (translate, not `left`) so the knob can't trigger layout.
+                  'absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200 ease-out',
+                  allowMultiple ? 'translate-x-4' : 'translate-x-0',
                 )}
               />
             </span>

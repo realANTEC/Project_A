@@ -43,7 +43,7 @@ function ExploreTile({
         loading="lazy"
         onLoad={() => setLoaded(true)}
         className={cn(
-          'relative z-10 block w-full object-cover transition-[opacity,transform] duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.06]',
+          'relative z-10 block w-full object-cover transition-[opacity,transform,scale] duration-700 ease-out group-hover:scale-[1.06]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
       />

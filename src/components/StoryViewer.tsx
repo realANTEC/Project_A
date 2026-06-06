@@ -100,9 +100,9 @@ export function StoryViewer({
             {Array.from({ length: current.framesInReel }).map((_, i) => (
               <div key={i} className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/30">
                 <motion.div
-                  className="h-full bg-white"
-                  initial={{ width: i < current.frameIndex ? '100%' : '0%' }}
-                  animate={{ width: i <= current.frameIndex ? '100%' : '0%' }}
+                  className="h-full w-full origin-left bg-white"
+                  initial={{ scaleX: i < current.frameIndex ? 1 : 0 }}
+                  animate={{ scaleX: i <= current.frameIndex ? 1 : 0 }}
                   transition={{ duration: i === current.frameIndex ? FRAME_MS / 1000 : 0, ease: 'linear' }}
                 />
               </div>

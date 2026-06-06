@@ -30,10 +30,11 @@ export function PollAttachment({ pollId }: { pollId: string }) {
             >
               <span
                 className={cn(
-                  'absolute inset-y-0 left-0 transition-all duration-500',
+                  // Fill via GPU scaleX (origin-left) instead of animating `width`.
+                  'absolute inset-y-0 left-0 w-full origin-left transition-[transform,background-color] duration-500',
                   mine ? 'bg-lilac/25' : 'bg-white/[0.08]',
                 )}
-                style={{ width: `${pct}%` }}
+                style={{ transform: `scaleX(${pct / 100})` }}
               />
               <span className="relative flex items-center justify-between gap-2 px-3 py-2 text-sm">
                 <span className="flex min-w-0 items-center gap-1.5">

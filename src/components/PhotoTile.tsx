@@ -38,7 +38,7 @@ export function PhotoTile({
         loading="lazy"
         onLoad={() => setLoaded(true)}
         className={cn(
-          'absolute inset-0 h-full w-full object-cover transition-[opacity,transform] duration-700 ease-[var(--ease-out-soft)] group-hover:scale-[1.06]',
+          'absolute inset-0 h-full w-full object-cover transition-[opacity,transform,scale] duration-700 ease-out group-hover:scale-[1.06]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
       />

@@ -94,7 +94,7 @@ export function PostMedia({ postId, image, aspect, tint, alt, onDoubleTapLike, o
         draggable={false}
         onLoad={() => setLoaded(true)}
         className={cn(
-          'absolute inset-0 h-full w-full select-none object-cover transition-[opacity,transform] duration-[800ms] ease-[var(--ease-out-soft)] group-hover:scale-[1.04]',
+          'absolute inset-0 h-full w-full select-none object-cover transition-[opacity,transform,scale] duration-[800ms] ease-out group-hover:scale-[1.04]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
       />
