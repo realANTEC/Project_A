@@ -52,7 +52,7 @@ export function MobileTabBar() {
         </button>
         <NavTab to="/saved" icon={Bookmark} label="Saved" />
         <NavLink to={`/u/${myHandle}`} aria-label="Profile" className="grid h-11 w-11 place-items-center">
-          <Avatar src={myAvatar} alt="Your profile" size={28} ring="aurora" />
+          <Avatar src={myAvatar} alt="Your profile" size={28} ring="none" />
         </NavLink>
       </div>
     </nav>

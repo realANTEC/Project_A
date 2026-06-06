@@ -14,10 +14,13 @@ export function StoryViewer({
   reels,
   startIndex,
   onClose,
+  onViewed,
 }: {
   reels: StoryReel[]
   startIndex: number
   onClose: () => void
+  /** Called with a reel's author handle as it is shown, so the rail can mark it seen. */
+  onViewed?: (handle: string) => void
 }) {
   const flat = useMemo(() => flattenReels(reels), [reels])
   const startPos = useMemo(() => {
@@ -28,6 +31,12 @@ export function StoryViewer({
   const trapRef = useFocusTrap<HTMLDivElement>(true)
   const navigate = useNavigate()
   const current = flat[pos] ?? flat[0]
+  const currentHandle = current.reel.user.handle
+
+  // Mark each reel viewed as it is shown (open + every advance), so the rail drops its glow ring.
+  useEffect(() => {
+    onViewed?.(currentHandle)
+  }, [onViewed, currentHandle])
 
   // Auto-advance; close after the final frame of the final reel.
   useEffect(() => {
@@ -90,7 +99,7 @@ export function StoryViewer({
           />
         ) : (
           <div className="absolute inset-0 grid place-items-center" style={{ background: gradient }}>
-            <Avatar src={resolveAvatar(reel.user)} alt={reel.user.name} size={104} ring="aurora" />
+            <Avatar src={resolveAvatar(reel.user)} alt={reel.user.name} size={104} ring="none" />
           </div>
         )}
 

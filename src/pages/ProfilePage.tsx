@@ -109,7 +109,7 @@ function ProfileView({
       {/* Header */}
       <header className="glass edge-light mt-2 rounded-4xl p-6 sm:p-8 lg:mt-6">
         <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
-          <Avatar src={resolveAvatar(user)} alt={user.name} size={104} ring="aurora" className="shrink-0" />
+          <Avatar src={resolveAvatar(user)} alt={user.name} size={104} ring="none" className="shrink-0" />
 
           <div className="min-w-0 flex-1">
             <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-center sm:gap-4">

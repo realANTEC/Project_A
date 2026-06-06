@@ -839,7 +839,7 @@ function NewConversation({
             onClick={() => start.mutate(p.id, { onSuccess: onPick })}
             className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition hover:bg-white/[0.05] disabled:opacity-50"
           >
-            <Avatar src={resolveAvatar(p)} alt={p.name} size={44} ring="aurora" />
+            <Avatar src={resolveAvatar(p)} alt={p.name} size={44} ring="none" />
             <span className="min-w-0 flex-1">
               <span className="flex items-center gap-1.5">
                 <span className="truncate text-sm font-semibold text-white">{p.name}</span>
@@ -1046,7 +1046,7 @@ function MockMessages() {
                   alt={c.user.name}
                   size={48}
                   online={c.online}
-                  ring={c.unread ? 'aurora' : 'none'}
+                  ring="none"
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">

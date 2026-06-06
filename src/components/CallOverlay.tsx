@@ -124,7 +124,7 @@ export function CallOverlay() {
                       src={resolveAvatar(call.peerUser)}
                       alt={call.peerUser.name}
                       size={120}
-                      ring="aurora"
+                      ring="none"
                     />
                     <p className="text-lg font-semibold text-white">{call.peerUser.name}</p>
                   </div>
@@ -189,7 +189,7 @@ export function CallOverlay() {
                 src={resolveAvatar(call.peerUser)}
                 alt={call.peerUser.name}
                 size={104}
-                ring="aurora"
+                ring="none"
                 className="animate-pulse"
               />
               <div>

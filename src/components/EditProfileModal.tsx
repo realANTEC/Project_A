@@ -101,7 +101,7 @@ export function EditProfileModal({
             <form onSubmit={submit} className="flex flex-col gap-4 p-5">
               {/* Avatar */}
               <div className="flex items-center gap-4">
-                <Avatar src={avatarDataUrl ?? initial.avatarUrl} alt="" size={72} ring="aurora" />
+                <Avatar src={avatarDataUrl ?? initial.avatarUrl} alt="" size={72} ring="none" />
                 <div className="flex flex-col gap-1">
                   <button
                     type="button"

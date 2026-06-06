@@ -81,7 +81,7 @@ export function FeedCard({ post, index = 0 }: { post: Post; index?: number }) {
       {/* header */}
       <header className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
         <Link to={`/u/${post.author.handle}`} className="shrink-0">
-          <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={42} ring="aurora" />
+          <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={42} ring="none" />
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">

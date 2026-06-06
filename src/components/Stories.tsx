@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
@@ -7,6 +7,7 @@ import { useCompose } from '@/lib/compose'
 import { useAuth } from '@/lib/auth'
 import { useFollowList } from '@/lib/profile'
 import { buildStoryReels } from '@/lib/stories'
+import { useStoryViews } from '@/lib/storyViews'
 import { cn } from '@/lib/cn'
 import { Avatar } from './Avatar'
 import { StoryViewer } from './StoryViewer'
@@ -20,6 +21,9 @@ export function Stories({ following = false }: { following?: boolean }) {
   const { session } = useAuth()
   const myId = session?.user.id
   const [openAt, setOpenAt] = useState<number | null>(null)
+  // Drop the glow ring once a story has been viewed (persisted, local).
+  const { viewed, markViewed } = useStoryViews()
+  const closeViewer = useCallback(() => setOpenAt(null), [])
   // On the "Following" tab, show only stories from people the signed-in user actually follows
   // (matched by handle against their real follow list); "For you" shows the full curated rail.
   const followList = useFollowList(myId, 'following', following && !!myId)
@@ -36,6 +40,12 @@ export function Stories({ following = false }: { following?: boolean }) {
   )
   // Each person's own posts become their story frames; people with none aren't shown at all.
   const reels = useMemo(() => buildStoryReels(shown, posts), [shown])
+  // Display order: unviewed stories first, viewed/seen ones pushed to the back (stable within each
+  // group). These are indices into `shown`/`reels`, so the viewer still opens by the stable index.
+  const order = useMemo(() => {
+    const seen = (i: number) => viewed.has(shown[i].user.handle) || !!shown[i].seen
+    return shown.map((_, i) => i).sort((a, b) => Number(seen(a)) - Number(seen(b)))
+  }, [shown, viewed])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [edges, setEdges] = useState({ left: false, right: false })
 
@@ -86,30 +96,33 @@ export function Stories({ following = false }: { following?: boolean }) {
           <span className="max-w-full truncate text-[11px] text-white/55">Your story</span>
         </button>
 
-        {shown.map((s, i) => (
-          <motion.button
-            type="button"
-            key={s.user.handle}
-            onClick={() => setOpenAt(i)}
-            aria-label={`View ${s.user.name}'s story`}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.04 * i, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            whileHover={{ y: -3 }}
-            className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5"
-          >
-            <span className="relative">
-              <Avatar
-                src={avatar(s.user.avatarId)}
-                alt={s.user.name}
-                size={56}
-                ring={s.seen ? 'seen' : 'aurora'}
-                className="transition-transform group-hover:scale-105"
-              />
-            </span>
-            <span className="max-w-full truncate text-[11px] text-white/55">{s.user.handle}</span>
-          </motion.button>
-        ))}
+        {order.map((idx, i) => {
+          const s = shown[idx]
+          return (
+            <motion.button
+              type="button"
+              key={s.user.handle}
+              onClick={() => setOpenAt(idx)}
+              aria-label={`View ${s.user.name}'s story`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.04 * i, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -3 }}
+              className="group flex w-[68px] shrink-0 flex-col items-center gap-1.5"
+            >
+              <span className="relative">
+                <Avatar
+                  src={avatar(s.user.avatarId)}
+                  alt={s.user.name}
+                  size={56}
+                  ring={viewed.has(s.user.handle) || s.seen ? 'seen' : 'aurora'}
+                  className="transition-transform group-hover:scale-105"
+                />
+              </span>
+              <span className="max-w-full truncate text-[11px] text-white/55">{s.user.handle}</span>
+            </motion.button>
+          )
+        })}
       </div>
 
       {/* Desktop scroll arrows — shown on hover, only when there's room to scroll that way. */}
@@ -138,7 +151,13 @@ export function Stories({ following = false }: { following?: boolean }) {
       {createPortal(
         <AnimatePresence>
           {openAt !== null && (
-            <StoryViewer key={openAt} reels={reels} startIndex={openAt} onClose={() => setOpenAt(null)} />
+            <StoryViewer
+              key={openAt}
+              reels={reels}
+              startIndex={openAt}
+              onClose={closeViewer}
+              onViewed={markViewed}
+            />
           )}
         </AnimatePresence>,
         document.body,

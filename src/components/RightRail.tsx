@@ -18,7 +18,7 @@ function MockSuggestions() {
       {suggestions.map(({ user, reason }) => (
         <li key={user.handle} className="flex items-center gap-3">
           <Link to={`/u/${user.handle}`} className="shrink-0">
-            <Avatar src={avatar(user.avatarId)} alt={user.name} size={40} ring="aurora" />
+            <Avatar src={avatar(user.avatarId)} alt={user.name} size={40} ring="none" />
           </Link>
           <Link to={`/u/${user.handle}`} className="min-w-0 flex-1">
             <span className="flex items-center gap-1">
@@ -54,7 +54,7 @@ function RealSuggestions() {
       {list.map((u) => (
         <li key={u.id} className="flex items-center gap-3">
           <Link to={`/u/${u.handle}`} className="shrink-0">
-            <Avatar src={resolveAvatar(u)} alt={u.name} size={40} ring="aurora" />
+            <Avatar src={resolveAvatar(u)} alt={u.name} size={40} ring="none" />
           </Link>
           <Link to={`/u/${u.handle}`} className="min-w-0 flex-1">
             <span className="flex items-center gap-1">

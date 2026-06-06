@@ -198,7 +198,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
       <div className="flex min-h-0 flex-1 flex-col md:w-[44%]">
         <header className="flex items-center gap-3 border-b border-white/[0.07] py-4 pl-5 pr-14">
           <button type="button" onClick={goToProfile} className="shrink-0">
-            <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={40} ring="aurora" />
+            <Avatar src={resolveAvatar(post.author)} alt={post.author.name} size={40} ring="none" />
           </button>
           <button type="button" onClick={goToProfile} className="min-w-0 flex-1 text-left">
             <span className="flex items-center gap-1.5">

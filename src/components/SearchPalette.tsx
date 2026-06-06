@@ -183,7 +183,7 @@ export function SearchPalette({ seed = '' }: { seed?: string }) {
                   >
                     {r.kind === 'person' && (
                       <>
-                        <Avatar src={resolveAvatar(r.user)} alt={r.user.name} size={40} ring="aurora" />
+                        <Avatar src={resolveAvatar(r.user)} alt={r.user.name} size={40} ring="none" />
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-1.5">
                             <span className="truncate text-sm font-semibold text-white">{r.user.name}</span>
