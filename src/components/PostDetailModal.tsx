@@ -15,6 +15,7 @@ import { VerifiedBadge } from './VerifiedBadge'
 import { PostMenu } from './PostMenu'
 import { EmojiPicker } from './EmojiPicker'
 import { EmojiText } from './EmojiText'
+import { Collapse } from './Collapse'
 import { useSharePost } from './SharePostModal'
 
 const SPRING = { type: 'spring', stiffness: 600, damping: 16 } as const
@@ -235,9 +236,9 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
                 onToggleLike={() => toggleCommentLike(root.key, likedComments.has(root.key))}
               />
               {root.replies.length > 0 && (
-                <div className="ml-11 space-y-3 border-l border-white/[0.07] pl-4">
-                  {expanded.has(root.key) ? (
-                    <>
+                <div className="ml-11 border-l border-white/[0.07] pl-4">
+                  <Collapse open={expanded.has(root.key)}>
+                    <div className="space-y-3 pb-3">
                       {root.replies.map((r) => (
                         <CommentItem
                           key={r.key}
@@ -248,23 +249,17 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
                           onToggleLike={() => toggleCommentLike(r.key, likedComments.has(r.key))}
                         />
                       ))}
-                      <button
-                        type="button"
-                        onClick={() => toggleExpand(root.key)}
-                        className="text-[11px] font-semibold text-white/55 transition hover:text-white"
-                      >
-                        Hide replies
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => toggleExpand(root.key)}
-                      className="text-[11px] font-semibold text-white/55 transition hover:text-white"
-                    >
-                      View {root.replies.length} {root.replies.length === 1 ? 'reply' : 'replies'}
-                    </button>
-                  )}
+                    </div>
+                  </Collapse>
+                  <button
+                    type="button"
+                    onClick={() => toggleExpand(root.key)}
+                    className="text-[11px] font-semibold text-white/55 transition hover:text-white"
+                  >
+                    {expanded.has(root.key)
+                      ? 'Hide replies'
+                      : `View ${root.replies.length} ${root.replies.length === 1 ? 'reply' : 'replies'}`}
+                  </button>
                 </div>
               )}
             </div>
@@ -324,10 +319,10 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
 
         {/* add comment / reply */}
         <div className="border-t border-white/[0.07]">
-          {replyTo && (
+          <Collapse open={!!replyTo}>
             <div className="flex items-center justify-between px-5 pt-2 text-[11px] text-white/55">
               <span>
-                Replying to <span className="font-semibold text-white/80">@{replyTo.handle}</span>
+                Replying to <span className="font-semibold text-white/80">@{replyTo?.handle}</span>
               </span>
               <button
                 type="button"
@@ -338,7 +333,7 @@ export function PostDetailContent({ post, onAfterDelete }: { post: Post; onAfter
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
-          )}
+          </Collapse>
           <form
             onSubmit={(e) => {
               e.preventDefault()
@@ -412,13 +407,17 @@ export function PostDetailModal() {
       {activePost && (
         <motion.div
           className="fixed inset-0 z-[60] grid place-items-center p-3 sm:p-6"
-          initial={{ opacity: 0 }}
+          // With the View-Transitions morph, the overlay must already be at full opacity when
+          // the VT captures the "after" snapshot — otherwise the named lightbox image (inside
+          // this subtree) is snapshotted near-invisible and the morph flies to nothing. So skip
+          // the enter fade under VT (the VT drives the visuals); keep it for the non-VT fallback.
+          initial={supportsViewTransitions ? false : { opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25 }}
         >
           <div
-            className="absolute inset-0 bg-black/55 backdrop-blur-xl"
+            className="absolute inset-0 bg-black/55 backdrop-blur-lg"
             onClick={closePost}
             aria-hidden="true"
           />
@@ -428,7 +427,9 @@ export function PostDetailModal() {
             role="dialog"
             aria-modal="true"
             aria-label={`Post by ${activePost.author.name}`}
-            initial={{ opacity: 0 }}
+            // See the overlay note: under VT the dialog must be opaque at snapshot time so the
+            // named image inside it is captured visible. Fade only on the non-VT fallback path.
+            initial={supportsViewTransitions ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
