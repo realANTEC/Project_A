@@ -190,8 +190,9 @@ function ProfileView({
           </div>
         </div>
 
-        {/* Highlights */}
-        <div className="no-scrollbar mask-fade-r mt-7 flex gap-5 overflow-x-auto">
+        {/* Highlights — a plain wrapping row; no overflow/scroll box (which clipped the ring on the
+            edge circles) and no right-edge mask fade. Wraps on very narrow screens instead. */}
+        <div className="mt-7 flex flex-wrap gap-5">
           {HIGHLIGHTS.map(({ label, icon: Icon }) => (
             <button
               key={label}
