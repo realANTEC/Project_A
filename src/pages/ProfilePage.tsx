@@ -19,6 +19,7 @@ import { usePostModal } from '@/lib/post-modal'
 import { useSearch } from '@/lib/search'
 import { useCompose } from '@/lib/compose'
 import { useToast } from '@/lib/toast'
+import { useMockFollow } from '@/lib/mockFollows'
 import { EmojiText } from '@/components/EmojiText'
 import { Page } from '@/components/Page'
 import { Avatar } from '@/components/Avatar'
@@ -265,6 +266,14 @@ function RealProfile({ profile }: { profile: DbProfile }) {
   const [editing, setEditing] = useState(false)
   const [list, setList] = useState<'followers' | 'following' | null>(null)
   const isFollowing = following.data ?? false
+  const realPosts = posts.data ?? []
+  // Showcase personas (maralin, etc.) are real accounts with no real posts yet — fall back to their
+  // curated grid so the profile stays rich. getProfile() echoes the handle back only for a known
+  // persona (it defaults to Mara for anything else), which is how we detect one.
+  const curated =
+    realPosts.length === 0 && !isYou && getProfile(profile.user.handle).user.handle === profile.user.handle
+      ? getProfile(profile.user.handle)
+      : null
 
   return (
     <>
@@ -273,13 +282,13 @@ function RealProfile({ profile }: { profile: DbProfile }) {
         bio={profile.bio}
         website={profile.website}
         stats={{
-          posts: posts.data?.length ?? 0,
+          posts: curated ? curated.grid.length : realPosts.length,
           followers: stats.data?.followers ?? 0,
           following: stats.data?.following ?? 0,
         }}
-        grid={posts.data ?? []}
-        gridLoading={posts.isLoading}
-        gridError={posts.isError}
+        grid={curated ? curated.grid : realPosts}
+        gridLoading={curated ? false : posts.isLoading}
+        gridError={curated ? false : posts.isError}
         onRetryGrid={() => posts.refetch()}
         isYou={isYou}
         isFollowing={isFollowing}
@@ -318,9 +327,9 @@ function RealProfile({ profile }: { profile: DbProfile }) {
 function MockProfile({ handle }: { handle: string }) {
   const profile = getProfile(handle)
   const { toast } = useToast()
-  // Curated personas aren't real accounts, so Follow toggles locally (a visual
-  // response, not persisted) and Message explains rather than opening a dead thread.
-  const [following, setFollowing] = useState(false)
+  // Curated personas aren't real accounts, so Follow is a local visual response persisted on this
+  // device (so it survives remounts/reloads); Message explains rather than opening a dead thread.
+  const { following, toggle } = useMockFollow(profile.user.handle)
   const isYou = profile.user.handle === currentUser.handle
   return (
     <ProfileView
@@ -331,7 +340,7 @@ function MockProfile({ handle }: { handle: string }) {
       grid={profile.grid}
       isYou={isYou}
       isFollowing={following}
-      onToggleFollow={() => setFollowing((f) => !f)}
+      onToggleFollow={toggle}
       onMessage={() =>
         toast(`${profile.user.name} is a showcase profile — messaging works with real members`)
       }
