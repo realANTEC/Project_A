@@ -1,12 +1,13 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { X } from 'lucide-react'
-import { type Post, resolveAvatar } from '@/data/feed'
+import { type Post, type User, resolveAvatar } from '@/data/feed'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { useAuth } from '@/lib/auth'
-import { useProfiles, useSendMessage, useStartConversation } from '@/lib/messages'
+import { useConversations, useSendMessage, useStartConversation } from '@/lib/messages'
+import { useFollowList } from '@/lib/profile'
 import { postUrl } from '@/lib/share'
 import { useToast } from '@/lib/toast'
 import { useFocusTrap } from '@/lib/useFocusTrap'
@@ -18,7 +19,31 @@ import { VerifiedBadge } from './VerifiedBadge'
  * which renders as a tappable post card on the other side. No copy/paste needed.
  */
 export function SharePostModal({ post, open, onClose }: { post: Post; open: boolean; onClose: () => void }) {
-  const { data: people = [], isLoading } = useProfiles()
+  const { session } = useAuth()
+  const myId = session?.user.id
+  const conversations = useConversations()
+  const followList = useFollowList(myId, 'following', open && !!myId)
+  // Only people you can actually reach: recent DM partners (most recent first), then people you
+  // follow — deduped. Not every account on the platform.
+  const people = useMemo<(User & { id: string })[]>(() => {
+    const seen = new Set<string>()
+    const out: (User & { id: string })[] = []
+    const convs = [...(conversations.data ?? [])].sort((a, b) => (b.lastAt || '').localeCompare(a.lastAt || ''))
+    for (const c of convs) {
+      if (c.otherId && !seen.has(c.otherId)) {
+        seen.add(c.otherId)
+        out.push({ ...c.user, id: c.otherId })
+      }
+    }
+    for (const u of followList.data ?? []) {
+      if (!seen.has(u.id)) {
+        seen.add(u.id)
+        out.push(u)
+      }
+    }
+    return out
+  }, [conversations.data, followList.data])
+  const isLoading = conversations.isLoading || followList.isLoading
   const startConversation = useStartConversation()
   const sendMessage = useSendMessage()
   const { toast } = useToast()
@@ -97,7 +122,9 @@ export function SharePostModal({ post, open, onClose }: { post: Post; open: bool
             <div className="min-h-0 flex-1 overflow-y-auto p-2">
               {isLoading && <p className="px-3 py-6 text-sm text-white/55">Loading people…</p>}
               {!isLoading && people.length === 0 && (
-                <p className="px-3 py-10 text-center text-sm text-white/55">No one else has signed in yet.</p>
+                <p className="px-3 py-10 text-center text-sm text-white/55">
+                  Follow people or start a chat to share posts with them.
+                </p>
               )}
               {people.map((p) => (
                 <button
