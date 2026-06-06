@@ -53,7 +53,6 @@ export type ExploreCategory = 'Nature' | 'Architecture' | 'Portraits' | 'Minimal
 export type Story = {
   user: User
   seen?: boolean
-  live?: boolean
 }
 
 export type Trend = {
@@ -218,10 +217,10 @@ export const posts: Post[] = [
 /* ---- stories ---------------------------------------------------------- */
 
 export const stories: Story[] = [
-  { user: u.mara, live: true },
+  { user: u.mara },
   { user: u.kenji },
   { user: u.amara },
-  { user: u.yuki, live: true },
+  { user: u.yuki },
   { user: u.sofia },
   { user: u.noor },
   { user: u.iris, seen: true },

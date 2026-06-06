@@ -36,7 +36,7 @@ export function HomePage() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <Stories />
+          <Stories following={onFollowing} />
           <Composer />
           {isSupabaseConfigured && feedQuery.isError && (
             <RetryBanner message="Couldn’t load the latest posts." onRetry={() => feedQuery.refetch()} />
