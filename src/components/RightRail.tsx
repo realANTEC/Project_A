@@ -29,7 +29,7 @@ function MockSuggestions() {
           </Link>
           <button
             type="button"
-            className="bg-aurora-soft shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10"
+            className="bg-aurora-soft bg-clip-padding shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10"
           >
             Follow
           </button>
@@ -67,7 +67,7 @@ function RealSuggestions() {
             type="button"
             onClick={() => toggleFollow.mutate({ profileId: u.id, following: false })}
             disabled={toggleFollow.isPending}
-            className="bg-aurora-soft shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10 disabled:opacity-50"
+            className="bg-aurora-soft bg-clip-padding shrink-0 rounded-full border border-white/10 px-3.5 py-1.5 text-xs font-semibold text-lilac transition hover:bg-white/10 disabled:opacity-50"
           >
             Follow
           </button>
