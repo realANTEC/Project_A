@@ -20,7 +20,7 @@ export function Layout() {
       <AuroraBackground />
       <ScrollToTop />
 
-      <div className="mx-auto flex w-full max-w-[1320px] items-start justify-center gap-4 px-3 sm:px-5 lg:gap-7 lg:px-6">
+      <div className="mx-auto flex w-full max-w-[1320px] items-start justify-center gap-4 px-6 sm:px-10 lg:gap-7 lg:px-6">
         <aside className="no-scrollbar sticky top-0 hidden h-dvh w-[244px] shrink-0 overflow-y-auto lg:block">
           <NavRail />
         </aside>
