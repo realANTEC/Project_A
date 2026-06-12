@@ -191,8 +191,10 @@ function ProfileView({
         </div>
 
         {/* Highlights — a plain wrapping row; no overflow/scroll box (which clipped the ring on the
-            edge circles) and no right-edge mask fade. Wraps on very narrow screens instead. */}
-        <div className="mt-7 flex flex-wrap gap-5">
+            edge circles) and no right-edge mask fade. Wraps on very narrow screens instead. The gap
+            tightens below sm so four 64px circles fit one row on a ~412px phone (4×64+3×20 = 316px
+            just overflows the ~314px card). */}
+        <div className="mt-7 flex flex-wrap gap-4 sm:gap-5">
           {HIGHLIGHTS.map(({ label, icon: Icon }) => (
             <button
               key={label}
