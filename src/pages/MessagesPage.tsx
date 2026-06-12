@@ -142,13 +142,15 @@ function MessageRow({
   const reactions = groupReactions(message.reactions, myId)
   const att = message.attachment
   const isSticker = !!stickerUrlOf(message.text)
-  const bareBubble = isSticker || isJumboEmoji(message.text) || !!att
-  // A shared post renders a big image-forward card — give it the wider bubble like attachments.
+  // A shared post renders as a standalone Instagram-style card (author header + photo + caption) —
+  // no bubble chrome around it; MessageBody bubbles any accompanying text itself.
   const isSharedPost = !att && !!sharedPostIdOf(message.text)
+  const bareBubble = isSticker || isJumboEmoji(message.text) || !!att || isSharedPost
   // Reaction pill tuck. It sits in the message's bottom-right corner so it reads as attached to
   // that message (not a separate one). When an "Edited" tag occupies that corner, pull up less; a
-  // bare jumbo-emoji bubble has no bottom padding, so it gets a small positive gap instead.
-  const pillMargin = message.editedAt ? (bareBubble ? 'mt-1.5' : '-mt-1') : '-mt-3'
+  // bare jumbo-emoji bubble has no bottom padding, so it gets a small positive gap instead. A
+  // shared-post card keeps its caption along the bottom edge, so the pill hangs below it instead.
+  const pillMargin = message.editedAt || isSharedPost ? (bareBubble ? 'mt-1.5' : '-mt-1') : '-mt-3'
 
   return (
     <div

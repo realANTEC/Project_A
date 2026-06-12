@@ -40,36 +40,41 @@ function Linkified({ text, linkClass }: { text: string; linkClass: string }) {
   return <>{out}</>
 }
 
-/** A large, image-forward tappable preview of a shared Soul post — the photo is the hero, with a
- *  small avatar + @handle on a scrim overlaid at the TOP. The whole card is image and its bottom
- *  edge stays clear, so a reaction pill can tuck onto the corner without overlapping any content. */
+/** An Instagram-style preview of a shared Soul post: a self-contained card with an author header
+ *  row, the square photo, and a one-line caption underneath. MessageRow drops the bubble chrome
+ *  around it (bareBubble), so the card reads as its own message like an IG DM share. */
 function SharedPostCard({ postId }: { postId: string }) {
   const { data: post, isLoading } = usePostById(postId)
   const { openPost } = usePostModal()
-  if (isLoading) return <div className="mt-1 aspect-square w-full animate-pulse rounded-xl bg-white/5" />
+  if (isLoading)
+    return <div className="mt-1 aspect-[3/4] w-[300px] max-w-full animate-pulse rounded-2xl bg-white/5" />
   if (!post) return null
   return (
     <button
       type="button"
       onClick={() => openPost(post)}
-      className="mt-1 block w-full overflow-hidden rounded-xl text-left ring-1 ring-white/15 transition hover:ring-white/30"
+      className="glass-inset mt-1 block w-[300px] max-w-full overflow-hidden rounded-2xl text-left ring-1 ring-white/10 transition hover:ring-white/25"
     >
+      <span className="flex items-center gap-2.5 px-3 py-2.5">
+        <img src={resolveAvatar(post.author)} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
+        <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white">
+          @{post.author.handle}
+        </span>
+      </span>
       <span
-        className="relative block aspect-square w-full overflow-hidden"
+        className="block aspect-square w-full overflow-hidden"
         style={{ background: `linear-gradient(135deg, ${post.tint[0]}, ${post.tint[1]})` }}
       >
         <img src={post.image} alt="" className="h-full w-full object-cover" />
-        <span className="absolute inset-x-0 top-0 flex items-center gap-2 bg-gradient-to-b from-black/60 via-black/25 to-transparent px-2.5 pb-6 pt-2">
-          <img
-            src={resolveAvatar(post.author)}
-            alt=""
-            className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/25"
-          />
-          <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.6)]">
-            @{post.author.handle}
-          </span>
-        </span>
       </span>
+      {post.caption && (
+        // truncate (nowrap), NOT line-clamp-1: the clamp only clips at the padding edge, so the
+        // start of line 2 leaks through the bottom padding.
+        <span className="block truncate px-3 py-2.5 text-[13px] text-white/70">
+          <span className="font-semibold text-white">@{post.author.handle}</span>{' '}
+          <EmojiText text={post.caption} />
+        </span>
+      )}
     </button>
   )
 }
@@ -114,7 +119,21 @@ export function MessageBody({ text, fromMe }: { text: string; fromMe: boolean })
   )
   return (
     <>
-      {inline && <Linkified text={inline} linkClass={linkClass} />}
+      {inline &&
+        (postId ? (
+          // With a card below, MessageRow drops the bubble chrome (bareBubble) — so bubble the
+          // accompanying text itself, IG-style: a normal text bubble stacked above the card.
+          <span
+            className={cn(
+              'block w-fit max-w-full rounded-2xl px-4 py-2.5 text-sm',
+              fromMe ? 'bg-aurora ml-auto rounded-br-md text-white' : 'glass-inset rounded-bl-md text-white/90',
+            )}
+          >
+            <Linkified text={inline} linkClass={linkClass} />
+          </span>
+        ) : (
+          <Linkified text={inline} linkClass={linkClass} />
+        ))}
       {postId && <SharedPostCard postId={postId} />}
     </>
   )
