@@ -17,13 +17,17 @@ function Linkified({ text, linkClass }: { text: string; linkClass: string }) {
   const out: ReactNode[] = []
   let last = 0
   let i = 0
+  // App links include the deploy base (BASE_URL) — the router's `to` is base-relative,
+  // so strip origin + base, not just origin.
+  const appRoot = window.location.origin + import.meta.env.BASE_URL
   for (const match of text.matchAll(urlRe())) {
     const url = match[0]
     const start = match.index ?? 0
     if (start > last) out.push(<EmojiText key={`t${i}`} text={text.slice(last, start)} />)
-    if (url.startsWith(window.location.origin)) {
+    if (`${url}/`.startsWith(appRoot)) {
+      const to = url.length > appRoot.length ? `/${url.slice(appRoot.length)}` : '/'
       out.push(
-        <Link key={`l${i++}`} to={url.slice(window.location.origin.length) || '/'} className={linkClass}>
+        <Link key={`l${i++}`} to={to} className={linkClass}>
           {url}
         </Link>,
       )

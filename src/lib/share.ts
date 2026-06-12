@@ -1,8 +1,9 @@
 import { type Post } from '@/data/feed'
 
-/** A real, deep-linkable URL for a post (resolves via the /p/:id route). */
+/** A real, deep-linkable URL for a post (resolves via the /p/:id route). Includes the
+ *  deploy base (BASE_URL is '/' in dev, '/Project_A/' on GitHub Pages). */
 export function postUrl(post: Post): string {
-  return `${window.location.origin}/p/${post.id}`
+  return `${window.location.origin}${import.meta.env.BASE_URL}p/${post.id}`
 }
 
 export type ShareResult = 'shared' | 'copied' | 'unavailable'

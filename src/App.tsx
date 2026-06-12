@@ -102,10 +102,13 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false } },
 })
 
+// Router base mirrors Vite's build base ('/' in dev, a subpath on GitHub Pages).
+const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/'
+
 export default function App() {
   return (
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={basename}>
         <AuthProvider>
           <QueryClientProvider client={queryClient}>
             <AppShell />
