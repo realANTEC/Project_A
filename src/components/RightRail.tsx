@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
-import { Search, TrendingUp } from 'lucide-react'
+import { Command, Search, TrendingUp } from 'lucide-react'
 import { avatar, resolveAvatar, suggestions, trends } from '@/data/feed'
 import { formatCount } from '@/lib/format'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -91,7 +91,11 @@ export function RightRail() {
       >
         <Search className="h-[18px] w-[18px] shrink-0" />
         <span className="flex-1">Search Soul</span>
-        <kbd className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/50">⌘K</kbd>
+        {/* Icon instead of the ⌘ glyph: the glyph comes from a platform fallback font whose
+            lopsided metrics sit off-center in the pill; the SVG centers exactly everywhere. */}
+        <kbd className="flex h-[18px] items-center gap-[3px] rounded-md bg-white/10 px-1.5 text-[10px] font-medium leading-none text-white/50">
+          <Command className="h-2.5 w-2.5" strokeWidth={2.25} />K
+        </kbd>
       </button>
 
       {/* Suggestions */}

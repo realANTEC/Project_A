@@ -156,7 +156,7 @@ export function SearchPalette({ seed = '' }: { seed?: string }) {
                 aria-label="Search"
                 className="w-full bg-transparent text-base text-white placeholder:text-white/55 focus:outline-none"
               />
-              <kbd className="hidden rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-white/50 sm:block">
+              <kbd className="hidden h-[18px] place-items-center rounded-md bg-white/10 px-1.5 text-[10px] font-medium leading-none text-white/50 sm:grid">
                 ESC
               </kbd>
             </div>
