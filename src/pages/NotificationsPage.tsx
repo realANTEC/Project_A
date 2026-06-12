@@ -27,7 +27,7 @@ const ICON_BG: Record<NotifType, string> = {
 
 function PageHeader() {
   return (
-    <div className="sticky top-16 z-30 lg:top-0 -mx-3 mb-2 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 pb-3 pt-4 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
+    <div className="sticky top-16 z-30 mb-2 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-2 pb-3 pt-4 backdrop-blur-md lg:top-0 lg:pt-6">
       <h1 className="font-display text-2xl font-bold tracking-tight text-white">Notifications</h1>
     </div>
   )
@@ -233,7 +233,7 @@ function MockNotifications() {
 
   return (
     <Page className="mx-auto max-w-[640px]">
-      <div className="sticky top-16 z-30 lg:top-0 -mx-3 mb-2 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-3 pb-3 pt-4 backdrop-blur-md lg:-mx-1 lg:px-1 lg:pt-6">
+      <div className="sticky top-16 z-30 mb-2 bg-gradient-to-b from-canvas via-canvas/85 to-transparent px-2 pb-3 pt-4 backdrop-blur-md lg:top-0 lg:pt-6">
         <h1 className="font-display text-2xl font-bold tracking-tight text-white">Notifications</h1>
         <div className="glass-inset mt-3 inline-flex rounded-full p-1">
           {(['all', 'mentions'] as const).map((t) => (
